@@ -180,14 +180,19 @@ document.getElementById('clear-btn').addEventListener('click', (e) => {
 
 // 玉の生成（サイズ＝質量＝音程）
 function spawnParticle(x, y, duration) {
-    const clampedDuration = Math.min(Math.max(duration, 50), 2000);
-    const radius = 5 + (clampedDuration / 2000) * 35; // 大きさを決定
-    const hue = 180 + (clampedDuration / 2000) * 120; // 180 (Cyan) to 300 (Magenta)
+    const clampedDuration = Math.min(Math.max(duration, 50), 5000);
+    const radius = 5 + (clampedDuration / 5000) * 100; // 最大サイズを大幅に拡大
+    const hue = 180 + (clampedDuration / 5000) * 160; // 180 (Cyan) to 340 (Red/Pink)
     const color = `hsl(${hue}, 80%, 75%)`;
     
     // ペンタトニックスケール (小さい＝高音、大きい＝低音)
-    const scale = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3", "E3", "C3"];
-    const index = Math.floor((clampedDuration / 2000) * (scale.length - 1));
+    const scale = [
+        "C6", "A5", "G5", "E5", "D5", 
+        "C5", "A4", "G4", "E4", "D4", 
+        "C4", "A3", "G3", "E3", "D3", 
+        "C3", "A2", "G2", "E2", "C2"
+    ];
+    const index = Math.floor((clampedDuration / 5000) * (scale.length - 1));
     const note = scale[index];
 
     const particle = Bodies.circle(x, y, radius, {
@@ -400,8 +405,8 @@ function render() {
     // 長押し中の玉サイズプレビュー
     if (isHolding && !isDrawingPath) {
         const duration = Date.now() - holdStartTime;
-        const clampedDuration = Math.min(Math.max(duration, 50), 2000);
-        const radius = 5 + (clampedDuration / 2000) * 35;
+        const clampedDuration = Math.min(Math.max(duration, 50), 5000);
+        const radius = 5 + (clampedDuration / 5000) * 100;
         
         ctx.beginPath();
         ctx.arc(holdStartPos.x, holdStartPos.y, radius, 0, Math.PI * 2);
