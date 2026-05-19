@@ -22,18 +22,59 @@ let gridPattern;
 let noisePattern;
 let bgGridPattern;
 
+// 手書き風の滲み・ガタガタを描画するためのユーティリティ
+function drawJitterPolygon(ctx, points, jitter, closePath = true) {
+    if (points.length === 0) return;
+    ctx.beginPath();
+    for (let i = 0; i < (closePath ? points.length : points.length - 1); i++) {
+        const p1 = points[i];
+        const p2 = points[(i + 1) % points.length];
+        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        const steps = Math.max(2, Math.floor(dist / 10)); // 10pxごとにポイントを追加
+        
+        if (i === 0) {
+            ctx.moveTo(p1.x + (Math.random() - 0.5) * jitter, p1.y + (Math.random() - 0.5) * jitter);
+        }
+        
+        for (let j = 1; j <= steps; j++) {
+            const t = j / steps;
+            const tx = p1.x + (p2.x - p1.x) * t;
+            const ty = p1.y + (p2.y - p1.y) * t;
+            const ox = (Math.random() - 0.5) * jitter;
+            const oy = (Math.random() - 0.5) * jitter;
+            ctx.lineTo(tx + ox, ty + oy);
+        }
+    }
+    if (closePath) ctx.closePath();
+}
+
+function drawJitterCircle(ctx, x, y, radius, jitter) {
+    ctx.beginPath();
+    const steps = Math.max(12, Math.floor(radius / 2)); 
+    for (let i = 0; i <= steps; i++) {
+        const angle = (i / steps) * Math.PI * 2;
+        const ox = (Math.random() - 0.5) * jitter;
+        const oy = (Math.random() - 0.5) * jitter;
+        const tx = x + Math.cos(angle) * radius + ox;
+        const ty = y + Math.sin(angle) * radius + oy;
+        if (i === 0) ctx.moveTo(tx, ty);
+        else ctx.lineTo(tx, ty);
+    }
+    ctx.closePath();
+}
+
 function createBgGridPattern() {
     const pCanvas = document.createElement('canvas');
-    pCanvas.width = 40;
-    pCanvas.height = 40;
+    pCanvas.width = 20; // 40から20に変更してより細かく
+    pCanvas.height = 20;
     const pctx = pCanvas.getContext('2d');
     pctx.fillStyle = '#e8e8e8'; // slightly off-white rough paper
-    pctx.fillRect(0, 0, 40, 40);
+    pctx.fillRect(0, 0, 20, 20);
     pctx.strokeStyle = '#cccccc';
-    pctx.lineWidth = 1;
+    pctx.lineWidth = 0.5; // より細く
     pctx.beginPath();
-    pctx.moveTo(0, 40); pctx.lineTo(40, 40);
-    pctx.moveTo(40, 0); pctx.lineTo(40, 40);
+    pctx.moveTo(0, 20); pctx.lineTo(20, 20);
+    pctx.moveTo(20, 0); pctx.lineTo(20, 20);
     pctx.stroke();
     return ctx.createPattern(pCanvas, 'repeat');
 }
@@ -429,17 +470,23 @@ function render() {
             ctx.fill();
             ctx.stroke();
         } else if (currentStyle === 'print') {
-            ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1;
-            
-            ctx.beginPath();
-            ctx.moveTo(parts[1].position.x, parts[1].position.y);
-            for (let i = 2; i < parts.length; i++) {
-                ctx.lineTo(parts[i].position.x, parts[i].position.y);
+            const pts = [];
+            for (let i = 1; i < parts.length; i++) {
+                pts.push({ x: parts[i].position.x, y: parts[i].position.y });
             }
-            ctx.closePath();
             
+            // ベースの手書き風の線
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1.5;
+            drawJitterPolygon(ctx, pts, 1.5);
             ctx.stroke();
+            
+            // 滲み（インク溜まり）効果のための少し太くて薄い線
+            ctx.strokeStyle = 'rgba(34, 34, 34, 0.2)';
+            ctx.lineWidth = 3.0;
+            drawJitterPolygon(ctx, pts, 2.5);
+            ctx.stroke();
+            
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; 
             ctx.lineWidth = 4; // さっきの太さに戻す
@@ -458,24 +505,31 @@ function render() {
 
     // ユーザーが現在描いている軌跡のプレビュー
     if (isDrawingPath && drawPoints.length > 0) {
-        ctx.beginPath();
-        ctx.moveTo(drawPoints[0].x, drawPoints[0].y);
-        for(let i = 1; i < drawPoints.length; i++) {
-            ctx.lineTo(drawPoints[i].x, drawPoints[i].y);
-        }
-        
-        if (currentStyle === 'sketch' || currentStyle === 'print') {
+        if (currentStyle === 'print') {
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 0.5;
+            ctx.lineWidth = 1.0;
+            drawJitterPolygon(ctx, drawPoints, 1.5, false);
             ctx.stroke();
         } else {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'white';
-            ctx.stroke();
-            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.moveTo(drawPoints[0].x, drawPoints[0].y);
+            for(let i = 1; i < drawPoints.length; i++) {
+                ctx.lineTo(drawPoints[i].x, drawPoints[i].y);
+            }
+            
+            if (currentStyle === 'sketch') {
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            } else {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'white';
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
         }
     }
 
@@ -485,16 +539,23 @@ function render() {
         const clampedDuration = Math.min(Math.max(duration, 50), 5000);
         const radius = 5 + (clampedDuration / 5000) * 100;
         
-        ctx.beginPath();
-        ctx.arc(holdStartPos.x, holdStartPos.y, radius, 0, Math.PI * 2);
-        if (currentStyle === 'sketch' || currentStyle === 'print') {
+        if (currentStyle === 'print') {
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 0.5;
+            ctx.lineWidth = 1.5;
+            drawJitterCircle(ctx, holdStartPos.x, holdStartPos.y, radius, 1.5);
+            ctx.stroke();
         } else {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(holdStartPos.x, holdStartPos.y, radius, 0, Math.PI * 2);
+            if (currentStyle === 'sketch') {
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 0.5;
+            } else {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 2;
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
     }
 
     // 玉（Particles）の描画
@@ -539,11 +600,15 @@ function render() {
         } else if (currentStyle === 'print') {
             const r = p.plugin.radius;
             
-            // 玉は純粋なベタ塗りにする
-            ctx.beginPath();
-            ctx.arc(p.position.x, p.position.y, r, 0, Math.PI * 2);
+            // 玉は純粋なベタ塗りにするが、輪郭は手書き風のガタガタをつける
+            drawJitterCircle(ctx, p.position.x, p.position.y, r, 1.0);
             ctx.fillStyle = p.plugin.color;
             ctx.fill();
+            
+            // 輪郭線を追加して手書き感を強調
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1.0;
+            ctx.stroke();
             
             if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
         } else {
