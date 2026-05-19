@@ -322,7 +322,14 @@ function render() {
         if (currentStyle === 'sketch') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1;
-            ctx.fillStyle = gridPattern; // 枠の内側を格子柄で塗りつぶす
+            
+            // パターン自体を枠の回転に合わせてトランスフォームする
+            const matrix = new DOMMatrix()
+                .translate(orbit.body.position.x, orbit.body.position.y)
+                .rotate(orbit.body.angle * 180 / Math.PI);
+            gridPattern.setTransform(matrix);
+            
+            ctx.fillStyle = gridPattern; // 枠の内側を回転する格子柄で塗りつぶす
             
             ctx.beginPath();
             // parts[0]は全体のhullなので除外し、各壁の中心を繋ぐ
