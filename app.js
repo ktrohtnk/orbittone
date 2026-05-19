@@ -94,7 +94,7 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     currentStyle = currentStyle === 'neon' ? 'sketch' : 'neon';
     const btn = document.getElementById('mode-btn');
-    btn.innerText = `Switch Style: ${currentStyle === 'neon' ? 'Sketch' : 'Neon'}`;
+    btn.innerText = `Switch Style: ${currentStyle === 'neon' ? 'Neon' : 'Sketch'}`;
     
     if (currentStyle === 'sketch') {
         document.body.style.background = '#eade57'; // 画像の黄色
