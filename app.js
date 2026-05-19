@@ -187,7 +187,6 @@ function spawnParticle(x, y, duration) {
     
     // ペンタトニックスケール (小さい＝高音、大きい＝低音)
     const scale = [
-        "C6", "A5", "G5", "E5", "D5", 
         "C5", "A4", "G4", "E4", "D4", 
         "C4", "A3", "G3", "E3", "D3", 
         "C3", "A2", "G2", "E2", "C2"
