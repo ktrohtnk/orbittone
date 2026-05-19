@@ -17,9 +17,40 @@ engine.gravity.y = 0.2; // 穏やかな重力表現
 let isAudioInitialized = false;
 let synth;
 let droneSynth;
-let currentStyle = 'sketch'; // 'neon' or 'sketch' by default
+let currentStyle = 'sketch'; // 'sketch', 'print', or 'neon' by default
 let gridPattern;
 let noisePattern;
+let bgGridPattern;
+let halftonePattern;
+
+function createBgGridPattern() {
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = 40;
+    pCanvas.height = 40;
+    const pctx = pCanvas.getContext('2d');
+    pctx.fillStyle = '#e8e8e8'; // slightly off-white rough paper
+    pctx.fillRect(0, 0, 40, 40);
+    pctx.strokeStyle = '#cccccc';
+    pctx.lineWidth = 1;
+    pctx.beginPath();
+    pctx.moveTo(0, 40); pctx.lineTo(40, 40);
+    pctx.moveTo(40, 0); pctx.lineTo(40, 40);
+    pctx.stroke();
+    return ctx.createPattern(pCanvas, 'repeat');
+}
+
+function createHalftonePattern() {
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = 8;
+    pCanvas.height = 8;
+    const pctx = pCanvas.getContext('2d');
+    pctx.clearRect(0, 0, 8, 8);
+    pctx.fillStyle = '#222';
+    pctx.beginPath();
+    pctx.arc(4, 4, 2.5, 0, Math.PI * 2);
+    pctx.fill();
+    return ctx.createPattern(pCanvas, 'repeat');
+}
 
 function createGridPattern() {
     const pCanvas = document.createElement('canvas');
@@ -107,6 +138,8 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     document.getElementById('mode-btn').style.pointerEvents = 'auto';
     gridPattern = createGridPattern();
     noisePattern = createNoisePattern();
+    bgGridPattern = createBgGridPattern();
+    halftonePattern = createHalftonePattern();
     setTimeout(() => {
         document.getElementById('ui-layer').style.display = 'none';
     }, 1000);
@@ -114,17 +147,29 @@ document.getElementById('start-btn').addEventListener('click', async () => {
 
 document.getElementById('mode-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    currentStyle = currentStyle === 'neon' ? 'sketch' : 'neon';
+    
+    if (currentStyle === 'sketch') currentStyle = 'print';
+    else if (currentStyle === 'print') currentStyle = 'neon';
+    else currentStyle = 'sketch';
+    
     const btn = document.getElementById('mode-btn');
-    btn.innerText = `Switch Style: ${currentStyle === 'neon' ? 'Neon' : 'Sketch'}`;
     
     if (currentStyle === 'sketch') {
-        document.body.style.background = '#eade57'; // 画像の黄色
+        btn.innerText = 'Switch Style: Print';
+        document.body.style.background = '#eade57'; 
+        btn.style.color = '#222';
+        btn.style.borderColor = '#222';
+        document.getElementById('clear-btn').style.color = '#222';
+        document.getElementById('clear-btn').style.borderColor = '#222';
+    } else if (currentStyle === 'print') {
+        btn.innerText = 'Switch Style: Neon';
+        document.body.style.background = '#e8e8e8'; 
         btn.style.color = '#222';
         btn.style.borderColor = '#222';
         document.getElementById('clear-btn').style.color = '#222';
         document.getElementById('clear-btn').style.borderColor = '#222';
     } else {
+        btn.innerText = 'Switch Style: Sketch';
         document.body.style.background = 'radial-gradient(circle at center, #1b2033 0%, #0a0c14 100%)';
         btn.style.color = 'white';
         btn.style.borderColor = 'rgba(255,255,255,0.5)';
@@ -364,6 +409,9 @@ function render() {
     if (currentStyle === 'sketch') {
         ctx.fillStyle = '#eade57';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else if (currentStyle === 'print') {
+        ctx.fillStyle = bgGridPattern;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else {
         // 背景（残像効果＝Trails effect）
         ctx.fillStyle = 'rgba(10, 12, 20, 0.3)';
@@ -378,22 +426,30 @@ function render() {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 0.5;
             
-            // パターン自体を枠の回転に合わせてトランスフォームする
             const matrix = new DOMMatrix()
                 .translate(orbit.body.position.x, orbit.body.position.y)
                 .rotate(orbit.body.angle * 180 / Math.PI);
             gridPattern.setTransform(matrix);
             
-            ctx.fillStyle = gridPattern; // 枠の内側を回転する格子柄で塗りつぶす
+            ctx.fillStyle = gridPattern; 
             
             ctx.beginPath();
-            // parts[0]は全体のhullなので除外し、各壁の中心を繋ぐ
             ctx.moveTo(parts[1].position.x, parts[1].position.y);
             for (let i = 2; i < parts.length; i++) {
                 ctx.lineTo(parts[i].position.x, parts[i].position.y);
             }
             ctx.closePath();
             ctx.fill();
+            ctx.stroke();
+        } else if (currentStyle === 'print') {
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(parts[1].position.x, parts[1].position.y);
+            for (let i = 2; i < parts.length; i++) {
+                ctx.lineTo(parts[i].position.x, parts[i].position.y);
+            }
+            ctx.closePath();
             ctx.stroke();
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; 
@@ -407,7 +463,7 @@ function render() {
             }
             ctx.closePath();
             ctx.stroke();
-            ctx.shadowBlur = 0; // reset
+            ctx.shadowBlur = 0; 
         }
     });
 
@@ -419,7 +475,7 @@ function render() {
             ctx.lineTo(drawPoints[i].x, drawPoints[i].y);
         }
         
-        if (currentStyle === 'sketch') {
+        if (currentStyle === 'sketch' || currentStyle === 'print') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 0.5;
             ctx.stroke();
@@ -442,7 +498,7 @@ function render() {
         
         ctx.beginPath();
         ctx.arc(holdStartPos.x, holdStartPos.y, radius, 0, Math.PI * 2);
-        if (currentStyle === 'sketch') {
+        if (currentStyle === 'sketch' || currentStyle === 'print') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 0.5;
         } else {
@@ -453,7 +509,7 @@ function render() {
     }
 
     // 玉（Particles）の描画
-    ctx.globalCompositeOperation = currentStyle === 'sketch' ? 'source-over' : 'lighter'; // 一番最初の強い光り方（lighter）に戻す
+    ctx.globalCompositeOperation = currentStyle === 'neon' ? 'lighter' : 'source-over';
     particles.forEach(p => {
         if (currentStyle === 'sketch') {
             const r = p.plugin.radius;
@@ -486,6 +542,37 @@ function render() {
             noisePattern.setTransform(noiseMatrix);
             
             ctx.globalAlpha = 0.6;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.globalCompositeOperation = 'source-over';
+            
+            if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
+        } else if (currentStyle === 'print') {
+            const r = p.plugin.radius;
+            const h = p.plugin.hue;
+            
+            // ボケた色のベース
+            const grad = ctx.createRadialGradient(p.position.x, p.position.y, 0, p.position.x, p.position.y, r * 1.5);
+            grad.addColorStop(0, `hsla(${h}, 80%, 60%, 0.9)`);
+            grad.addColorStop(1, `hsla(${h}, 80%, 60%, 0)`);
+            
+            ctx.beginPath();
+            ctx.arc(p.position.x, p.position.y, r * 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // 荒いハーフトーンの重ね掛け
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.beginPath();
+            ctx.arc(p.position.x, p.position.y, r * 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = halftonePattern;
+            
+            const matrix = new DOMMatrix()
+                .translate(p.position.x, p.position.y)
+                .rotate(p.angle * 180 / Math.PI);
+            halftonePattern.setTransform(matrix);
+            
+            ctx.globalAlpha = 0.7;
             ctx.fill();
             ctx.globalAlpha = 1.0;
             ctx.globalCompositeOperation = 'source-over';
