@@ -21,7 +21,6 @@ let currentStyle = 'sketch'; // 'sketch', 'print', or 'neon' by default
 let gridPattern;
 let noisePattern;
 let bgGridPattern;
-let halftonePattern;
 
 function createBgGridPattern() {
     const pCanvas = document.createElement('canvas');
@@ -36,27 +35,6 @@ function createBgGridPattern() {
     pctx.moveTo(0, 40); pctx.lineTo(40, 40);
     pctx.moveTo(40, 0); pctx.lineTo(40, 40);
     pctx.stroke();
-    return ctx.createPattern(pCanvas, 'repeat');
-}
-
-function createHalftonePattern() {
-    const pCanvas = document.createElement('canvas');
-    const size = 256;
-    pCanvas.width = size;
-    pCanvas.height = size;
-    const pctx = pCanvas.getContext('2d');
-    pctx.clearRect(0, 0, size, size);
-    pctx.fillStyle = '#222';
-    
-    // ベースとなる網点を非常に大きく（高解像度で）描画しておく
-    const step = 64;
-    for (let y = 0; y < size; y += step) {
-        for (let x = 0; x < size; x += step) {
-            pctx.beginPath();
-            pctx.arc(x + step/2, y + step/2, step * 0.35, 0, Math.PI * 2);
-            pctx.fill();
-        }
-    }
     return ctx.createPattern(pCanvas, 'repeat');
 }
 
@@ -99,7 +77,6 @@ function createNoisePattern() {
 gridPattern = createGridPattern();
 noisePattern = createNoisePattern();
 bgGridPattern = createBgGridPattern();
-halftonePattern = createHalftonePattern();
 
 // Tone.js の初期化（ユーザーアクションが必要）
 document.getElementById('start-btn').addEventListener('click', async () => {
@@ -455,20 +432,6 @@ function render() {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1;
             
-            // 枠の大きさに応じて網点（トーン）の大きさを変える
-            const bounds = orbit.body.bounds;
-            const size = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y);
-            // 巨大な元パターンを「縮小」して使うことで、ドットがボヤけずクッキリする
-            const scaleFactor = Math.max(0.05, size / 800); 
-            
-            const matrix = new DOMMatrix()
-                .translate(orbit.body.position.x, orbit.body.position.y)
-                .rotate(orbit.body.angle * 180 / Math.PI)
-                .scale(scaleFactor, scaleFactor);
-            
-            halftonePattern.setTransform(matrix);
-            ctx.fillStyle = halftonePattern;
-            
             ctx.beginPath();
             ctx.moveTo(parts[1].position.x, parts[1].position.y);
             for (let i = 2; i < parts.length; i++) {
@@ -476,9 +439,6 @@ function render() {
             }
             ctx.closePath();
             
-            ctx.globalAlpha = 0.5; // 半透明の網点
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
             ctx.stroke();
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; 
