@@ -16,6 +16,22 @@ engine.gravity.y = 0.2; // 穏やかな重力表現
 
 let isAudioInitialized = false;
 let synth;
+let currentStyle = 'neon'; // 'neon' or 'sketch'
+let halftonePattern;
+
+function createHalftonePattern() {
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = 6;
+    pCanvas.height = 6;
+    const pctx = pCanvas.getContext('2d');
+    pctx.fillStyle = '#f4f4f0'; // Paper color
+    pctx.fillRect(0, 0, 6, 6);
+    pctx.fillStyle = '#d0d0c8'; // Halftone dot color
+    pctx.beginPath();
+    pctx.arc(3, 3, 1.5, 0, Math.PI * 2);
+    pctx.fill();
+    return ctx.createPattern(pCanvas, 'repeat');
+}
 
 // Tone.js の初期化（ユーザーアクションが必要）
 document.getElementById('start-btn').addEventListener('click', async () => {
@@ -43,9 +59,33 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     document.getElementById('ui-layer').style.opacity = '0';
     document.getElementById('clear-btn').style.opacity = '1';
     document.getElementById('clear-btn').style.pointerEvents = 'auto';
+    document.getElementById('mode-btn').style.opacity = '1';
+    document.getElementById('mode-btn').style.pointerEvents = 'auto';
+    halftonePattern = createHalftonePattern();
     setTimeout(() => {
         document.getElementById('ui-layer').style.display = 'none';
     }, 1000);
+});
+
+document.getElementById('mode-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentStyle = currentStyle === 'neon' ? 'sketch' : 'neon';
+    const btn = document.getElementById('mode-btn');
+    btn.innerText = `Switch Style: ${currentStyle === 'neon' ? 'Neon' : 'Sketch'}`;
+    
+    if (currentStyle === 'sketch') {
+        document.body.style.background = '#f4f4f0';
+        btn.style.color = '#222';
+        btn.style.borderColor = '#222';
+        document.getElementById('clear-btn').style.color = '#222';
+        document.getElementById('clear-btn').style.borderColor = '#222';
+    } else {
+        document.body.style.background = 'radial-gradient(circle at center, #1b2033 0%, #0a0c14 100%)';
+        btn.style.color = 'white';
+        btn.style.borderColor = 'rgba(255,255,255,0.5)';
+        document.getElementById('clear-btn').style.color = 'white';
+        document.getElementById('clear-btn').style.borderColor = 'rgba(255,255,255,0.5)';
+    }
 });
 
 // 管理用配列
@@ -260,17 +300,28 @@ Runner.run(runner, engine);
 
 // 独自レンダリングループ
 function render() {
-    // 背景（残像効果＝Trails effect）
-    ctx.fillStyle = 'rgba(10, 12, 20, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (currentStyle === 'sketch') {
+        ctx.fillStyle = halftonePattern;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+        // 背景（残像効果＝Trails effect）
+        ctx.fillStyle = 'rgba(10, 12, 20, 0.3)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     // 枠（Orbit）の描画
     ctx.globalCompositeOperation = 'source-over';
     currentOrbits.forEach(orbit => {
         const parts = orbit.body.parts;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        if (currentStyle === 'sketch') {
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = 'transparent';
+        } else {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        }
         
         ctx.beginPath();
         for (let i = 1; i < parts.length; i++) {
@@ -281,7 +332,7 @@ function render() {
             }
             ctx.lineTo(part.vertices[0].x, part.vertices[0].y);
         }
-        ctx.fill();
+        if (currentStyle !== 'sketch') ctx.fill();
         ctx.stroke();
     });
 
@@ -292,14 +343,20 @@ function render() {
         for(let i = 1; i < drawPoints.length; i++) {
             ctx.lineTo(drawPoints[i].x, drawPoints[i].y);
         }
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
         
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = 'white';
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        if (currentStyle === 'sketch') {
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        } else {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'white';
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
     }
 
     // 長押し中の玉サイズプレビュー
@@ -310,32 +367,52 @@ function render() {
         
         ctx.beginPath();
         ctx.arc(holdStartPos.x, holdStartPos.y, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 2;
+        if (currentStyle === 'sketch') {
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+        } else {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+        }
         ctx.stroke();
     }
 
     // 玉（Particles）の描画
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = currentStyle === 'sketch' ? 'source-over' : 'lighter';
     particles.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.position.x, p.position.y, p.plugin.radius, 0, 2 * Math.PI);
-        
-        let color = p.plugin.color;
-        // 衝突時のフラッシュ処理
-        if (p.plugin.flash > 0) {
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowBlur = 20 + p.plugin.flash * 20;
-            ctx.shadowColor = '#ffffff';
-            p.plugin.flash -= 0.05; // 減衰
+        if (currentStyle === 'sketch') {
+            const r = p.plugin.radius;
+            const grad = ctx.createRadialGradient(p.position.x, p.position.y, r * 0.4, p.position.x, p.position.y, r * 1.3);
+            grad.addColorStop(0, 'rgba(30, 30, 30, 0.95)');
+            grad.addColorStop(0.7, 'rgba(30, 30, 30, 0.8)');
+            grad.addColorStop(1, 'rgba(30, 30, 30, 0)');
+            
+            ctx.beginPath();
+            ctx.arc(p.position.x, p.position.y, r * 1.3, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = 'rgba(30, 30, 30, 0.3)';
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
         } else {
-            ctx.fillStyle = color;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = color;
+            ctx.beginPath();
+            ctx.arc(p.position.x, p.position.y, p.plugin.radius, 0, 2 * Math.PI);
+            let color = p.plugin.color;
+            if (p.plugin.flash > 0) {
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowBlur = 20 + p.plugin.flash * 20;
+                ctx.shadowColor = '#ffffff';
+                p.plugin.flash -= 0.05;
+            } else {
+                ctx.fillStyle = color;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = color;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
         }
-        
-        ctx.fill();
-        ctx.shadowBlur = 0;
     });
     ctx.globalCompositeOperation = 'source-over';
 
