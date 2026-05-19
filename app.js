@@ -50,13 +50,16 @@ function drawJitterPolygon(ctx, points, jitter, closePath = true) {
 
 function drawJitterCircle(ctx, x, y, radius, jitter) {
     ctx.beginPath();
-    const steps = Math.max(12, Math.floor(radius / 2)); 
+    // 均一になりすぎないようにステップ数を減らして歪ませる
+    const steps = Math.max(8, Math.floor(radius / 4)); 
     for (let i = 0; i <= steps; i++) {
         const angle = (i / steps) * Math.PI * 2;
+        // 半径自体も少しランダムに変動させていびつな形にする
+        const rJitter = radius + (Math.random() - 0.5) * jitter * 2;
         const ox = (Math.random() - 0.5) * jitter;
         const oy = (Math.random() - 0.5) * jitter;
-        const tx = x + Math.cos(angle) * radius + ox;
-        const ty = y + Math.sin(angle) * radius + oy;
+        const tx = x + Math.cos(angle) * rJitter + ox;
+        const ty = y + Math.sin(angle) * rJitter + oy;
         if (i === 0) ctx.moveTo(tx, ty);
         else ctx.lineTo(tx, ty);
     }
@@ -358,9 +361,9 @@ function createOrbitFromPoints(points) {
     const speed = (Math.random() * 0.01) + 0.005;
     const dir = Math.random() > 0.5 ? 1 : -1;
     
-    // リキテンスタイン風ハーフトーンのための網点の間隔（枠の大きさに比例）
+    // リキテンスタイン風ハーフトーンのための網点の間隔（枠の大きさに比例、細かめにする）
     const size = Math.max(orbitBody.bounds.max.x - orbitBody.bounds.min.x, orbitBody.bounds.max.y - orbitBody.bounds.min.y);
-    const toneSpacing = Math.max(10, size / 15); // 最低10px
+    const toneSpacing = Math.max(5, size / 25); // 最低5px、全体的に細かく
     
     currentOrbits.push({
         body: orbitBody,
@@ -490,21 +493,22 @@ function render() {
             ctx.closePath();
             ctx.clip(); // これ以降の描画をこの枠の内側に限定
             
+            // 枠の回転と一緒にハーフトーンも回転させるため、ローカル座標に変換
+            ctx.translate(orbit.body.position.x, orbit.body.position.y);
+            ctx.rotate(orbit.body.angle);
+            
             ctx.fillStyle = '#222';
             const spacing = orbit.toneSpacing;
             const r = spacing * 0.35; // ドットの半径
             const bounds = orbit.body.bounds;
             
-            // 回転時に端が切れないよう、バウンディングボックスの最大幅を使って余裕を持たせる
-            const cx = orbit.body.position.x;
-            const cy = orbit.body.position.y;
-            const maxRadius = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y) * 1.5; 
+            // ローカル座標での描画範囲
+            const maxRadius = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y); 
             
-            // ドットの配置を絶対座標（ワールド座標）にスナップ。枠が回転してもドット柄は真っ直ぐ固定される（スクリーントーン風）
-            const startX = Math.floor((cx - maxRadius) / spacing) * spacing;
-            const endX = Math.ceil((cx + maxRadius) / spacing) * spacing;
-            const startY = Math.floor((cy - maxRadius) / spacing) * spacing;
-            const endY = Math.ceil((cy + maxRadius) / spacing) * spacing;
+            const startX = -maxRadius;
+            const endX = maxRadius;
+            const startY = -maxRadius;
+            const endY = maxRadius;
             
             // ポップアート特有の六角形（ハニカム）配列にするため、行ごとにX座標を半分ずらす
             for (let y = startY; y <= endY; y += spacing) {
@@ -516,7 +520,20 @@ function render() {
                     ctx.fill();
                 }
             }
-            ctx.restore(); // クリッピング解除
+            
+            // ハーフトーンの上にノイズを重ねて荒らす
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.globalAlpha = 0.5;
+            // 毎フレームノイズの位置をランダムにずらしてボイリングさせる
+            const noiseMatrix = new DOMMatrix().translate(Math.random() * 100, Math.random() * 100);
+            noisePattern.setTransform(noiseMatrix);
+            ctx.fillStyle = noisePattern;
+            ctx.fillRect(-maxRadius, -maxRadius, maxRadius * 2, maxRadius * 2);
+            
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1.0;
+            
+            ctx.restore(); // クリッピングと座標系の解除
             // ------------------------------------------------
             
             // ベースの手書き風の線
@@ -644,14 +661,25 @@ function render() {
         } else if (currentStyle === 'print') {
             const r = p.plugin.radius;
             
-            // 玉は純粋なベタ塗りにするが、輪郭は手書き風のガタガタをつける
-            drawJitterCircle(ctx, p.position.x, p.position.y, r, 1.0);
+            // 玉の形が均一にならないよう、半径に応じた強めのジッター（歪み）を加える
+            drawJitterCircle(ctx, p.position.x, p.position.y, r, r * 0.15 + 1.5);
             ctx.fillStyle = p.plugin.color;
             ctx.fill();
             
+            // ノイズを重ねて荒らす
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.globalAlpha = 0.5;
+            const noiseMatrix = new DOMMatrix().translate(Math.random() * 100, Math.random() * 100);
+            noisePattern.setTransform(noiseMatrix);
+            ctx.fillStyle = noisePattern;
+            ctx.fill(); // 今描いた玉のパス内側にだけノイズが適用される
+            
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1.0;
+            
             // 輪郭線を追加して手書き感を強調
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1.0;
+            ctx.lineWidth = 1.5;
             ctx.stroke();
             
             if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
