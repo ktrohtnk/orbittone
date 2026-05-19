@@ -198,8 +198,9 @@ document.getElementById('start-btn').addEventListener('click', async () => {
 document.getElementById('mode-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     
-    if (currentStyle === 'sketch') currentStyle = 'print';
-    else if (currentStyle === 'print') currentStyle = 'neon';
+    // Toggle order: sketch -> neon -> print
+    if (currentStyle === 'sketch') currentStyle = 'neon';
+    else if (currentStyle === 'neon') currentStyle = 'print';
     else currentStyle = 'sketch';
     
     const btn = document.getElementById('mode-btn');
@@ -211,20 +212,20 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
         btn.style.borderColor = '#222';
         document.getElementById('clear-btn').style.color = '#222';
         document.getElementById('clear-btn').style.borderColor = '#222';
-    } else if (currentStyle === 'print') {
-        btn.innerText = 'Style: Print';
-        document.body.style.background = '#e8e8e8'; 
-        btn.style.color = '#222';
-        btn.style.borderColor = '#222';
-        document.getElementById('clear-btn').style.color = '#222';
-        document.getElementById('clear-btn').style.borderColor = '#222';
-    } else {
+    } else if (currentStyle === 'neon') {
         btn.innerText = 'Style: Neon';
         document.body.style.background = 'radial-gradient(circle at center, #1b2033 0%, #0a0c14 100%)';
         btn.style.color = 'white';
         btn.style.borderColor = 'rgba(255,255,255,0.5)';
         document.getElementById('clear-btn').style.color = 'white';
         document.getElementById('clear-btn').style.borderColor = 'rgba(255,255,255,0.5)';
+    } else {
+        btn.innerText = 'Style: Print';
+        document.body.style.background = '#e8e8e8'; 
+        btn.style.color = '#222';
+        btn.style.borderColor = '#222';
+        document.getElementById('clear-btn').style.color = '#222';
+        document.getElementById('clear-btn').style.borderColor = '#222';
     }
 });
 
@@ -505,57 +506,6 @@ function render() {
                 pts.push({ x: parts[i].position.x, y: parts[i].position.y });
             }
             
-            // --- リキテンスタイン風ハーフトーン（クリッピング） ---
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(pts[0].x, pts[0].y);
-            for (let i = 1; i < pts.length; i++) {
-                ctx.lineTo(pts[i].x, pts[i].y);
-            }
-            ctx.closePath();
-            ctx.clip(); // これ以降の描画をこの枠の内側に限定
-            
-            // 枠の回転と一緒にハーフトーンも回転させるため、ローカル座標に変換
-            ctx.translate(orbit.body.position.x, orbit.body.position.y);
-            ctx.rotate(orbit.body.angle);
-            
-            ctx.fillStyle = '#222';
-            const spacing = orbit.toneSpacing;
-            const r = spacing * 0.35; // ドットの半径
-            const bounds = orbit.body.bounds;
-            
-            // ローカル座標での描画範囲（不変のサイズを使い、毎フレームのスライドを防ぐ）
-            const maxRadius = orbit.maxRadius; 
-            const steps = Math.ceil(maxRadius / spacing);
-            
-            // ポップアート特有の六角形（ハニカム）配列にするため、行ごとにX座標を半分ずらす
-            // -steps から steps まで回すことで、(0,0) を基準に完全に固定されたグリッドになる
-            for (let row = -steps; row <= steps; row++) {
-                const y = row * spacing;
-                const xOffset = (row % 2 === 0) ? 0 : spacing / 2;
-                for (let col = -steps; col <= steps; col++) {
-                    const x = col * spacing;
-                    ctx.beginPath();
-                    ctx.arc(x + xOffset, y, r, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-            
-            // ハーフトーンの上にノイズを重ねて荒らす
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.globalAlpha = 0.5;
-            // 酔いを防ぐため、ノイズは動かさず固定パターンとして描画
-            const noiseMatrix = new DOMMatrix();
-            noisePattern.setTransform(noiseMatrix);
-            ctx.fillStyle = noisePattern;
-            ctx.fillRect(-maxRadius, -maxRadius, maxRadius * 2, maxRadius * 2);
-            
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.globalAlpha = 1.0;
-            
-            ctx.restore(); // クリッピングと座標系の解除
-            // ------------------------------------------------
-            
             // ベースの手書き風の線
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1.5;
@@ -622,8 +572,9 @@ function render() {
         const radius = 5 + (clampedDuration / 5000) * 100;
         
         if (currentStyle === 'print') {
-            ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1.5;
+            const hue = 180 + (clampedDuration / 5000) * 160;
+            ctx.strokeStyle = `hsl(${hue}, 80%, 75%)`;
+            ctx.lineWidth = 4.0;
             // プレビュー中は固定シードでブレないようにする
             drawJitterCircle(ctx, holdStartPos.x, holdStartPos.y, radius, 1.5, 0, 0);
             ctx.stroke();
@@ -685,23 +636,10 @@ function render() {
             
             // 玉の形が均一にならないよう、半径に応じた強めのジッター（歪み）を加える
             drawJitterCircle(ctx, p.position.x, p.position.y, r, r * 0.15 + 1.5, p.plugin.seed, p.angle);
-            ctx.fillStyle = p.plugin.color;
-            ctx.fill();
             
-            // ノイズを重ねて荒らす
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.globalAlpha = 0.5;
-            const noiseMatrix = new DOMMatrix(); // 酔いを防ぐためノイズ固定
-            noisePattern.setTransform(noiseMatrix);
-            ctx.fillStyle = noisePattern;
-            ctx.fill(); // 今描いた玉のパス内側にだけノイズが適用される
-            
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.globalAlpha = 1.0;
-            
-            // 輪郭線を追加して手書き感を強調
-            ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1.5;
+            // 塗りつぶしなし、色付きの太い線のみ
+            ctx.strokeStyle = p.plugin.color;
+            ctx.lineWidth = 4.0;
             ctx.stroke();
             
             if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
