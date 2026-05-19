@@ -1,0 +1,352 @@
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Matter.js のセットアップ
+const Engine = Matter.Engine,
+      Runner = Matter.Runner,
+      Bodies = Matter.Bodies,
+      World = Matter.World,
+      Events = Matter.Events,
+      Body = Matter.Body;
+
+const engine = Engine.create();
+engine.gravity.y = 0.2; // 穏やかな重力表現
+
+let isAudioInitialized = false;
+let synth;
+
+// Tone.js の初期化（ユーザーアクションが必要）
+document.getElementById('start-btn').addEventListener('click', async () => {
+    await Tone.start();
+    
+    // アンビエントで柔らかい音色（サイン波）の設定
+    synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" },
+        envelope: {
+            attack: 0.05,
+            decay: 0.5,
+            sustain: 0.2,
+            release: 2
+        }
+    }).chain(
+        new Tone.FeedbackDelay("8n.", 0.5), // ディレイによる空間的反復
+        new Tone.Reverb({ decay: 8, wet: 0.6 }), // 深い空気感
+        new Tone.Limiter(-2),
+        Tone.Destination
+    );
+    
+    synth.volume.value = -8;
+    
+    isAudioInitialized = true;
+    document.getElementById('ui-layer').style.opacity = '0';
+    document.getElementById('clear-btn').style.opacity = '1';
+    document.getElementById('clear-btn').style.pointerEvents = 'auto';
+    setTimeout(() => {
+        document.getElementById('ui-layer').style.display = 'none';
+    }, 1000);
+});
+
+// 管理用配列
+let particles = [];
+let currentOrbits = [];
+
+// インタラクションステート
+let isHolding = false;
+let isDrawingPath = false;
+let holdStartPos = { x: 0, y: 0 };
+let holdStartTime = 0;
+let drawPoints = [];
+
+// 入力ハンドリング
+function handleStart(x, y, e) {
+    if(e.target.closest('button')) return;
+    isHolding = true;
+    isDrawingPath = false;
+    holdStartPos = { x, y };
+    holdStartTime = Date.now();
+    drawPoints = [{ x, y }];
+}
+
+function handleMove(x, y) {
+    if (!isHolding) return;
+    const dist = Math.hypot(x - holdStartPos.x, y - holdStartPos.y);
+    if (!isDrawingPath && dist > 15) {
+        isDrawingPath = true; // ドラッグと判定
+    }
+    if (isDrawingPath) {
+        drawPoints.push({ x, y });
+    }
+}
+
+function handleEnd() {
+    if (!isHolding) return;
+    if (isDrawingPath) {
+        if (drawPoints.length > 5) {
+            createOrbitFromPoints(drawPoints);
+        }
+    } else {
+        const duration = Date.now() - holdStartTime;
+        spawnParticle(holdStartPos.x, holdStartPos.y, duration);
+    }
+    isHolding = false;
+    isDrawingPath = false;
+}
+
+// イベントリスナーの登録
+window.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY, e));
+window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
+window.addEventListener('mouseup', handleEnd);
+
+window.addEventListener('touchstart', (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY, e), {passive: false});
+window.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    handleMove(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive: false});
+window.addEventListener('touchend', handleEnd);
+
+// 全消去機能
+document.getElementById('clear-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    particles.forEach(p => World.remove(engine.world, p));
+    currentOrbits.forEach(o => World.remove(engine.world, o.body));
+    particles = [];
+    currentOrbits = [];
+});
+
+// 玉の生成（サイズ＝質量＝音程）
+function spawnParticle(x, y, duration) {
+    const clampedDuration = Math.min(Math.max(duration, 50), 2000);
+    const radius = 5 + (clampedDuration / 2000) * 35; // 大きさを決定
+    const hue = 180 + (clampedDuration / 2000) * 120; // 180 (Cyan) to 300 (Magenta)
+    const color = `hsl(${hue}, 80%, 75%)`;
+    
+    // ペンタトニックスケール (小さい＝高音、大きい＝低音)
+    const scale = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3", "E3", "C3"];
+    const index = Math.floor((clampedDuration / 2000) * (scale.length - 1));
+    const note = scale[index];
+
+    const particle = Bodies.circle(x, y, radius, {
+        restitution: 0.85, // 弾む
+        friction: 0.05,
+        frictionAir: 0.005, // 浮遊感
+        density: radius * 0.002,
+        plugin: {
+            isParticle: true,
+            note: note,
+            color: color,
+            radius: radius,
+            flash: 0
+        }
+    });
+
+    World.add(engine.world, particle);
+    particles.push(particle);
+}
+
+// 指でなぞった軌跡から回転する枠（Orbit）を生成
+function createOrbitFromPoints(points) {
+    const walls = [];
+    const orbitThickness = 15;
+    
+    // 描画間隔を間引きして負荷軽減＆形状の安定化
+    const simplified = [points[0]];
+    let lastPoint = points[0];
+    for (let i = 1; i < points.length; i++) {
+        const dx = points[i].x - lastPoint.x;
+        const dy = points[i].y - lastPoint.y;
+        if (Math.hypot(dx, dy) > 30) {
+            simplified.push(points[i]);
+            lastPoint = points[i];
+        }
+    }
+    
+    // 枠を閉じる
+    simplified.push(simplified[0]);
+    
+    // 座標を元に剛体（壁）の集合を作る
+    for (let i = 0; i < simplified.length - 1; i++) {
+        const p1 = simplified[i];
+        const p2 = simplified[i+1];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const dist = Math.hypot(dx, dy);
+        const angle = Math.atan2(dy, dx);
+        
+        const midX = p1.x + dx / 2;
+        const midY = p1.y + dy / 2;
+        
+        const wall = Bodies.rectangle(midX, midY, dist + 4, orbitThickness, {
+            angle: angle,
+            isStatic: true,
+            restitution: 0.2 // 壁自体の反発は低め（玉側のrestitutionで弾む）
+        });
+        walls.push(wall);
+    }
+    
+    // パーツを1つのボディに結合
+    const orbitBody = Body.create({
+        parts: walls,
+        isStatic: true
+    });
+    
+    // ランダムな回転速度（有機的なゆったりとした回転）
+    const speed = (Math.random() * 0.01) + 0.005;
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    
+    currentOrbits.push({
+        body: orbitBody,
+        rotationSpeed: speed * dir
+    });
+    
+    World.add(engine.world, orbitBody);
+}
+
+// 毎フレームの更新処理
+Events.on(engine, 'beforeUpdate', () => {
+    // 枠を回転させ続ける
+    currentOrbits.forEach(orbit => {
+        Body.rotate(orbit.body, orbit.rotationSpeed);
+    });
+});
+
+Events.on(engine, 'afterUpdate', () => {
+    // 画面外に落ちた玉を削除
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        if (p.position.y > canvas.height + 2000 || p.position.x < -2000 || p.position.x > canvas.width + 2000) {
+            World.remove(engine.world, p);
+            particles.splice(i, 1);
+        }
+    }
+});
+
+// 衝突による発音判定
+Events.on(engine, 'collisionStart', function(event) {
+    if (!isAudioInitialized) return;
+    const pairs = event.pairs;
+    const now = Date.now();
+    
+    for (let i = 0; i < pairs.length; i++) {
+        const { bodyA, bodyB } = pairs[i];
+        
+        let particle = null;
+        if (bodyA.plugin && bodyA.plugin.isParticle) particle = bodyA;
+        else if (bodyB.plugin && bodyB.plugin.isParticle) particle = bodyB;
+        
+        if (particle) {
+            const velocity = Matter.Vector.magnitude(particle.velocity);
+            
+            // 連打によるノイズ防止
+            if (!particle.plugin.lastHit || (now - particle.plugin.lastHit > 80)) {
+                if (velocity > 1.0) { // 一定速度以上の衝突で発音
+                    const note = particle.plugin.note;
+                    const vol = Math.min(velocity / 20, 1);
+                    synth.triggerAttackRelease(note, "8n", undefined, vol);
+                    
+                    // 視覚的なフラッシュ効果
+                    particle.plugin.lastHit = now;
+                    particle.plugin.flash = 1.0;
+                }
+            }
+        }
+    }
+});
+
+// ループ開始
+const runner = Runner.create();
+Runner.run(runner, engine);
+
+// 独自レンダリングループ
+function render() {
+    // 背景（残像効果＝Trails effect）
+    ctx.fillStyle = 'rgba(10, 12, 20, 0.3)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 枠（Orbit）の描画
+    ctx.globalCompositeOperation = 'source-over';
+    currentOrbits.forEach(orbit => {
+        const parts = orbit.body.parts;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        
+        ctx.beginPath();
+        for (let i = 1; i < parts.length; i++) {
+            const part = parts[i];
+            ctx.moveTo(part.vertices[0].x, part.vertices[0].y);
+            for (let j = 1; j < part.vertices.length; j++) {
+                ctx.lineTo(part.vertices[j].x, part.vertices[j].y);
+            }
+            ctx.lineTo(part.vertices[0].x, part.vertices[0].y);
+        }
+        ctx.fill();
+        ctx.stroke();
+    });
+
+    // ユーザーが現在描いている軌跡のプレビュー
+    if (isDrawingPath && drawPoints.length > 0) {
+        ctx.beginPath();
+        ctx.moveTo(drawPoints[0].x, drawPoints[0].y);
+        for(let i = 1; i < drawPoints.length; i++) {
+            ctx.lineTo(drawPoints[i].x, drawPoints[i].y);
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'white';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
+
+    // 長押し中の玉サイズプレビュー
+    if (isHolding && !isDrawingPath) {
+        const duration = Date.now() - holdStartTime;
+        const clampedDuration = Math.min(Math.max(duration, 50), 2000);
+        const radius = 5 + (clampedDuration / 2000) * 35;
+        
+        ctx.beginPath();
+        ctx.arc(holdStartPos.x, holdStartPos.y, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    // 玉（Particles）の描画
+    ctx.globalCompositeOperation = 'lighter';
+    particles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.position.x, p.position.y, p.plugin.radius, 0, 2 * Math.PI);
+        
+        let color = p.plugin.color;
+        // 衝突時のフラッシュ処理
+        if (p.plugin.flash > 0) {
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 20 + p.plugin.flash * 20;
+            ctx.shadowColor = '#ffffff';
+            p.plugin.flash -= 0.05; // 減衰
+        } else {
+            ctx.fillStyle = color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = color;
+        }
+        
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    });
+    ctx.globalCompositeOperation = 'source-over';
+
+    requestAnimationFrame(render);
+}
+
+// リサイズ対応
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+
+// レンダリング開始
+render();
