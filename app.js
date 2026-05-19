@@ -359,17 +359,18 @@ function render() {
             ctx.fill();
             ctx.stroke();
         } else {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 1;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // More opaque since it's a single line now
+            ctx.lineWidth = 4; // Thicker line
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(100, 200, 255, 0.5)'; // Add a slight neon glow
             ctx.beginPath();
             ctx.moveTo(parts[1].position.x, parts[1].position.y);
             for (let i = 2; i < parts.length; i++) {
                 ctx.lineTo(parts[i].position.x, parts[i].position.y);
             }
             ctx.closePath();
-            ctx.fill();
             ctx.stroke();
+            ctx.shadowBlur = 0; // reset
         }
     });
 
@@ -459,12 +460,12 @@ function render() {
             let color = p.plugin.color;
             if (p.plugin.flash > 0) {
                 ctx.fillStyle = '#ffffff';
-                ctx.shadowBlur = 20 + p.plugin.flash * 20;
+                ctx.shadowBlur = 10 + p.plugin.flash * 15; // 以前より抑えめに
                 ctx.shadowColor = '#ffffff';
                 p.plugin.flash -= 0.05;
             } else {
                 ctx.fillStyle = color;
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = 8; // 以前の15から8に減らして発光を抑える
                 ctx.shadowColor = color;
             }
             ctx.fill();
