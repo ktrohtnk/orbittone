@@ -446,12 +446,30 @@ function render() {
         } else if (currentStyle === 'print') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1;
+            
+            // 枠の大きさに応じて網点（トーン）の大きさを変える
+            const bounds = orbit.body.bounds;
+            const size = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y);
+            const scaleFactor = Math.max(0.5, size / 150); 
+            
+            const matrix = new DOMMatrix()
+                .translate(orbit.body.position.x, orbit.body.position.y)
+                .rotate(orbit.body.angle * 180 / Math.PI)
+                .scale(scaleFactor, scaleFactor);
+            
+            halftonePattern.setTransform(matrix);
+            ctx.fillStyle = halftonePattern;
+            
             ctx.beginPath();
             ctx.moveTo(parts[1].position.x, parts[1].position.y);
             for (let i = 2; i < parts.length; i++) {
                 ctx.lineTo(parts[i].position.x, parts[i].position.y);
             }
             ctx.closePath();
+            
+            ctx.globalAlpha = 0.5; // 半透明の網点
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
             ctx.stroke();
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; 
@@ -552,28 +570,11 @@ function render() {
         } else if (currentStyle === 'print') {
             const r = p.plugin.radius;
             
-            // ベタ塗りのベース
+            // 玉は純粋なベタ塗りにする
             ctx.beginPath();
             ctx.arc(p.position.x, p.position.y, r, 0, Math.PI * 2);
             ctx.fillStyle = p.plugin.color;
             ctx.fill();
-            
-            // 荒いハーフトーンの重ね掛け
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = halftonePattern;
-            
-            // 玉の大きさに応じて網点（トーン）の大きさを変える
-            const scaleFactor = 0.5 + (r / 20); // r=10で1倍、r=100で5.5倍の大きさの網点
-            const matrix = new DOMMatrix()
-                .translate(p.position.x, p.position.y)
-                .rotate(p.angle * 180 / Math.PI)
-                .scale(scaleFactor, scaleFactor);
-            halftonePattern.setTransform(matrix);
-            
-            ctx.globalAlpha = 0.8;
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
-            ctx.globalCompositeOperation = 'source-over';
             
             if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
         } else {
