@@ -157,21 +157,21 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
     const btn = document.getElementById('mode-btn');
     
     if (currentStyle === 'sketch') {
-        btn.innerText = 'Switch Style: Print';
+        btn.innerText = 'Style: Sketch';
         document.body.style.background = '#eade57'; 
         btn.style.color = '#222';
         btn.style.borderColor = '#222';
         document.getElementById('clear-btn').style.color = '#222';
         document.getElementById('clear-btn').style.borderColor = '#222';
     } else if (currentStyle === 'print') {
-        btn.innerText = 'Switch Style: Neon';
+        btn.innerText = 'Style: Print';
         document.body.style.background = '#e8e8e8'; 
         btn.style.color = '#222';
         btn.style.borderColor = '#222';
         document.getElementById('clear-btn').style.color = '#222';
         document.getElementById('clear-btn').style.borderColor = '#222';
     } else {
-        btn.innerText = 'Switch Style: Sketch';
+        btn.innerText = 'Style: Neon';
         document.body.style.background = 'radial-gradient(circle at center, #1b2033 0%, #0a0c14 100%)';
         btn.style.color = 'white';
         btn.style.borderColor = 'rgba(255,255,255,0.5)';
@@ -551,30 +551,26 @@ function render() {
             if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
         } else if (currentStyle === 'print') {
             const r = p.plugin.radius;
-            const h = p.plugin.hue;
             
-            // ボケた色のベース
-            const grad = ctx.createRadialGradient(p.position.x, p.position.y, 0, p.position.x, p.position.y, r * 1.5);
-            grad.addColorStop(0, `hsla(${h}, 80%, 60%, 0.9)`);
-            grad.addColorStop(1, `hsla(${h}, 80%, 60%, 0)`);
-            
+            // ベタ塗りのベース
             ctx.beginPath();
-            ctx.arc(p.position.x, p.position.y, r * 1.5, 0, Math.PI * 2);
-            ctx.fillStyle = grad;
+            ctx.arc(p.position.x, p.position.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = p.plugin.color;
             ctx.fill();
             
             // 荒いハーフトーンの重ね掛け
             ctx.globalCompositeOperation = 'multiply';
-            ctx.beginPath();
-            ctx.arc(p.position.x, p.position.y, r * 1.5, 0, Math.PI * 2);
             ctx.fillStyle = halftonePattern;
             
+            // 玉の大きさに応じて網点（トーン）の大きさを変える
+            const scaleFactor = 0.5 + (r / 20); // r=10で1倍、r=100で5.5倍の大きさの網点
             const matrix = new DOMMatrix()
                 .translate(p.position.x, p.position.y)
-                .rotate(p.angle * 180 / Math.PI);
+                .rotate(p.angle * 180 / Math.PI)
+                .scale(scaleFactor, scaleFactor);
             halftonePattern.setTransform(matrix);
             
-            ctx.globalAlpha = 0.7;
+            ctx.globalAlpha = 0.8;
             ctx.fill();
             ctx.globalAlpha = 1.0;
             ctx.globalCompositeOperation = 'source-over';
