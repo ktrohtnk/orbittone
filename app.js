@@ -312,7 +312,12 @@ Events.on(engine, 'collisionStart', function(event) {
                 if (velocity > 1.0) { // 一定速度以上の衝突で発音
                     const note = particle.plugin.note;
                     const vol = Math.min(velocity / 20, 1);
-                    synth.triggerAttackRelease(note, "8n", undefined, vol);
+                    
+                    // 玉が大きい（＝低音）ほど、ドローンのように長くサスティーンさせる
+                    // 半径(5〜105程度)に基づいて発音時間(秒)を計算
+                    const duration = 0.2 + (particle.plugin.radius / 100) * 4.0;
+                    
+                    synth.triggerAttackRelease(note, duration, undefined, vol);
                     
                     // 視覚的なフラッシュ効果
                     particle.plugin.lastHit = now;
