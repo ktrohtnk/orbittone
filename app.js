@@ -359,10 +359,10 @@ function render() {
             ctx.fill();
             ctx.stroke();
         } else {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // More opaque since it's a single line now
-            ctx.lineWidth = 4; // Thicker line
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(100, 200, 255, 0.5)'; // Add a slight neon glow
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; 
+            ctx.lineWidth = 8; // さらに太く
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(100, 200, 255, 0.8)'; 
             ctx.beginPath();
             ctx.moveTo(parts[1].position.x, parts[1].position.y);
             for (let i = 2; i < parts.length; i++) {
@@ -416,7 +416,7 @@ function render() {
     }
 
     // 玉（Particles）の描画
-    ctx.globalCompositeOperation = currentStyle === 'sketch' ? 'source-over' : 'lighter';
+    ctx.globalCompositeOperation = 'source-over'; // lighterを廃止して本来の色を出す
     particles.forEach(p => {
         if (currentStyle === 'sketch') {
             const r = p.plugin.radius;
@@ -460,12 +460,12 @@ function render() {
             let color = p.plugin.color;
             if (p.plugin.flash > 0) {
                 ctx.fillStyle = '#ffffff';
-                ctx.shadowBlur = 10 + p.plugin.flash * 15; // 以前より抑えめに
+                ctx.shadowBlur = 5 + p.plugin.flash * 10; // さらに抑えめに
                 ctx.shadowColor = '#ffffff';
                 p.plugin.flash -= 0.05;
             } else {
                 ctx.fillStyle = color;
-                ctx.shadowBlur = 8; // 以前の15から8に減らして発光を抑える
+                ctx.shadowBlur = 4; // グローを最小限にして色をくっきり出す
                 ctx.shadowColor = color;
             }
             ctx.fill();
