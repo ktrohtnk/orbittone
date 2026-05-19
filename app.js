@@ -41,14 +41,22 @@ function createBgGridPattern() {
 
 function createHalftonePattern() {
     const pCanvas = document.createElement('canvas');
-    pCanvas.width = 8;
-    pCanvas.height = 8;
+    const size = 256;
+    pCanvas.width = size;
+    pCanvas.height = size;
     const pctx = pCanvas.getContext('2d');
-    pctx.clearRect(0, 0, 8, 8);
+    pctx.clearRect(0, 0, size, size);
     pctx.fillStyle = '#222';
-    pctx.beginPath();
-    pctx.arc(4, 4, 2.5, 0, Math.PI * 2);
-    pctx.fill();
+    
+    // ベースとなる網点を非常に大きく（高解像度で）描画しておく
+    const step = 64;
+    for (let y = 0; y < size; y += step) {
+        for (let x = 0; x < size; x += step) {
+            pctx.beginPath();
+            pctx.arc(x + step/2, y + step/2, step * 0.35, 0, Math.PI * 2);
+            pctx.fill();
+        }
+    }
     return ctx.createPattern(pCanvas, 'repeat');
 }
 
@@ -450,7 +458,8 @@ function render() {
             // 枠の大きさに応じて網点（トーン）の大きさを変える
             const bounds = orbit.body.bounds;
             const size = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y);
-            const scaleFactor = Math.max(0.5, size / 150); 
+            // 巨大な元パターンを「縮小」して使うことで、ドットがボヤけずクッキリする
+            const scaleFactor = Math.max(0.05, size / 800); 
             
             const matrix = new DOMMatrix()
                 .translate(orbit.body.position.x, orbit.body.position.y)
