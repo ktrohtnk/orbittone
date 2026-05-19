@@ -18,6 +18,7 @@ let isAudioInitialized = false;
 let synth;
 let currentStyle = 'neon'; // 'neon' or 'sketch'
 let gridPattern;
+let noisePattern;
 
 function createGridPattern() {
     const pCanvas = document.createElement('canvas');
@@ -35,6 +36,23 @@ function createGridPattern() {
     pctx.stroke();
     
     return ctx.createPattern(pCanvas, 'repeat');
+}
+
+function createNoisePattern() {
+    const nCanvas = document.createElement('canvas');
+    nCanvas.width = 128;
+    nCanvas.height = 128;
+    const nctx = nCanvas.getContext('2d');
+    const imgData = nctx.createImageData(128, 128);
+    for (let i = 0; i < imgData.data.length; i += 4) {
+        const noise = Math.random() * 255;
+        imgData.data[i] = noise;
+        imgData.data[i+1] = noise;
+        imgData.data[i+2] = noise;
+        imgData.data[i+3] = Math.random() * 100; // Semi-transparent noise
+    }
+    nctx.putImageData(imgData, 0, 0);
+    return ctx.createPattern(nCanvas, 'repeat');
 }
 
 // Tone.js の初期化（ユーザーアクションが必要）
@@ -66,6 +84,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     document.getElementById('mode-btn').style.opacity = '1';
     document.getElementById('mode-btn').style.pointerEvents = 'auto';
     gridPattern = createGridPattern();
+    noisePattern = createNoisePattern();
     setTimeout(() => {
         document.getElementById('ui-layer').style.display = 'none';
     }, 1000);
@@ -417,6 +436,24 @@ function render() {
             ctx.shadowColor = `hsla(${h}, 80%, 50%, 0.3)`;
             ctx.fill();
             ctx.shadowBlur = 0;
+            
+            // ノイズテクスチャの重ね掛け
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.beginPath();
+            // 滲みの少し内側までにノイズを適用
+            ctx.arc(p.position.x, p.position.y, r * 1.1, 0, Math.PI * 2);
+            ctx.fillStyle = noisePattern;
+            
+            // 玉の動きに合わせてノイズも移動・回転させる
+            const noiseMatrix = new DOMMatrix()
+                .translate(p.position.x, p.position.y)
+                .rotate(p.angle * 180 / Math.PI);
+            noisePattern.setTransform(noiseMatrix);
+            
+            ctx.globalAlpha = 0.6;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.globalCompositeOperation = 'source-over';
             
             if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
         } else {
