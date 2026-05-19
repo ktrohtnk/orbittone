@@ -363,14 +363,11 @@ function render() {
             ctx.lineWidth = 1;
             ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             ctx.beginPath();
-            for (let i = 1; i < parts.length; i++) {
-                const part = parts[i];
-                ctx.moveTo(part.vertices[0].x, part.vertices[0].y);
-                for (let j = 1; j < part.vertices.length; j++) {
-                    ctx.lineTo(part.vertices[j].x, part.vertices[j].y);
-                }
-                ctx.lineTo(part.vertices[0].x, part.vertices[0].y);
+            ctx.moveTo(parts[1].position.x, parts[1].position.y);
+            for (let i = 2; i < parts.length; i++) {
+                ctx.lineTo(parts[i].position.x, parts[i].position.y);
             }
+            ctx.closePath();
             ctx.fill();
             ctx.stroke();
         }
