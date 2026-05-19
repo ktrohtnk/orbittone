@@ -87,6 +87,12 @@ function createNoisePattern() {
     return ctx.createPattern(nCanvas, 'repeat');
 }
 
+// パターンを初期化
+gridPattern = createGridPattern();
+noisePattern = createNoisePattern();
+bgGridPattern = createBgGridPattern();
+halftonePattern = createHalftonePattern();
+
 // Tone.js の初期化（ユーザーアクションが必要）
 document.getElementById('start-btn').addEventListener('click', async () => {
     await Tone.start();
@@ -136,10 +142,6 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     document.getElementById('clear-btn').style.pointerEvents = 'auto';
     document.getElementById('mode-btn').style.opacity = '1';
     document.getElementById('mode-btn').style.pointerEvents = 'auto';
-    gridPattern = createGridPattern();
-    noisePattern = createNoisePattern();
-    bgGridPattern = createBgGridPattern();
-    halftonePattern = createHalftonePattern();
     setTimeout(() => {
         document.getElementById('ui-layer').style.display = 'none';
     }, 1000);
