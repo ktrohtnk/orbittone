@@ -16,6 +16,7 @@ engine.gravity.y = 0.2; // 穏やかな重力表現
 
 let isAudioInitialized = false;
 let synth;
+let droneSynth;
 let currentStyle = 'sketch'; // 'neon' or 'sketch' by default
 let gridPattern;
 let noisePattern;
@@ -76,6 +77,27 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     );
     
     synth.volume.value = -8;
+    
+    // 低音用の倍音豊かなドローンシンセ
+    droneSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { 
+            type: "fatsawtooth",
+            count: 3,
+            spread: 20
+        },
+        envelope: {
+            attack: 0.5,
+            decay: 0.5,
+            sustain: 0.8,
+            release: 4
+        }
+    }).chain(
+        new Tone.Filter(300, "lowpass"),
+        new Tone.Reverb({ decay: 10, wet: 0.8 }),
+        new Tone.Limiter(-2),
+        Tone.Destination
+    );
+    droneSynth.volume.value = -14; // うるさすぎないように調整
     
     isAudioInitialized = true;
     document.getElementById('ui-layer').style.opacity = '0';
@@ -316,7 +338,13 @@ Events.on(engine, 'collisionStart', function(event) {
                     // 半径(5〜105程度)に基づいて発音時間(秒)を計算
                     const duration = 0.2 + (particle.plugin.radius / 100) * 4.0;
                     
-                    synth.triggerAttackRelease(note, duration, undefined, vol);
+                    if (particle.plugin.radius > 50) {
+                        // サイズが大きい（低音）場合は倍音豊かなドローンシンセを重ねる
+                        droneSynth.triggerAttackRelease(note, duration, undefined, vol * 0.8);
+                        synth.triggerAttackRelease(note, duration, undefined, vol * 0.4);
+                    } else {
+                        synth.triggerAttackRelease(note, duration, undefined, vol);
+                    }
                     
                     // 視覚的なフラッシュ効果
                     particle.plugin.lastHit = now;
