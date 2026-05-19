@@ -25,14 +25,12 @@ function createGridPattern() {
     pCanvas.height = 40;
     const pctx = pCanvas.getContext('2d');
     pctx.clearRect(0, 0, 40, 40);
-    pctx.strokeStyle = 'rgba(0,0,0,0.4)';
-    pctx.lineWidth = 0.5;
+    pctx.strokeStyle = '#222';
+    pctx.lineWidth = 1;
     
     pctx.beginPath();
     pctx.moveTo(0, 0); pctx.lineTo(40, 40);
     pctx.moveTo(40, 0); pctx.lineTo(0, 40);
-    pctx.moveTo(0, 20); pctx.lineTo(40, 20);
-    pctx.moveTo(0, 40); pctx.lineTo(40, 40);
     pctx.stroke();
     
     return ctx.createPattern(pCanvas, 'repeat');
