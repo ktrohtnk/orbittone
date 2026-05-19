@@ -176,6 +176,7 @@ function spawnParticle(x, y, duration) {
             isParticle: true,
             note: note,
             color: color,
+            hue: hue,
             radius: radius,
             flash: 0
         }
@@ -316,24 +317,30 @@ function render() {
         if (currentStyle === 'sketch') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1;
-            ctx.fillStyle = 'transparent';
+            ctx.beginPath();
+            // parts[0]は全体のhullなので除外し、各壁の中心を繋ぐ
+            ctx.moveTo(parts[1].position.x, parts[1].position.y);
+            for (let i = 2; i < parts.length; i++) {
+                ctx.lineTo(parts[i].position.x, parts[i].position.y);
+            }
+            ctx.closePath();
+            ctx.stroke();
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.lineWidth = 1;
             ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-        }
-        
-        ctx.beginPath();
-        for (let i = 1; i < parts.length; i++) {
-            const part = parts[i];
-            ctx.moveTo(part.vertices[0].x, part.vertices[0].y);
-            for (let j = 1; j < part.vertices.length; j++) {
-                ctx.lineTo(part.vertices[j].x, part.vertices[j].y);
+            ctx.beginPath();
+            for (let i = 1; i < parts.length; i++) {
+                const part = parts[i];
+                ctx.moveTo(part.vertices[0].x, part.vertices[0].y);
+                for (let j = 1; j < part.vertices.length; j++) {
+                    ctx.lineTo(part.vertices[j].x, part.vertices[j].y);
+                }
+                ctx.lineTo(part.vertices[0].x, part.vertices[0].y);
             }
-            ctx.lineTo(part.vertices[0].x, part.vertices[0].y);
+            ctx.fill();
+            ctx.stroke();
         }
-        if (currentStyle !== 'sketch') ctx.fill();
-        ctx.stroke();
     });
 
     // ユーザーが現在描いている軌跡のプレビュー
@@ -382,16 +389,18 @@ function render() {
     particles.forEach(p => {
         if (currentStyle === 'sketch') {
             const r = p.plugin.radius;
-            const grad = ctx.createRadialGradient(p.position.x, p.position.y, r * 0.4, p.position.x, p.position.y, r * 1.3);
-            grad.addColorStop(0, 'rgba(30, 30, 30, 0.95)');
-            grad.addColorStop(0.7, 'rgba(30, 30, 30, 0.8)');
-            grad.addColorStop(1, 'rgba(30, 30, 30, 0)');
+            const h = p.plugin.hue;
+            // 水彩・インク滲み風のグラデーション
+            const grad = ctx.createRadialGradient(p.position.x, p.position.y, r * 0.2, p.position.x, p.position.y, r * 1.5);
+            grad.addColorStop(0, `hsla(${h}, 80%, 40%, 1)`); // 中心は濃く
+            grad.addColorStop(0.5, `hsla(${h}, 80%, 50%, 0.8)`);
+            grad.addColorStop(1, `hsla(${h}, 80%, 60%, 0)`); // 輪郭は滲んで消える
             
             ctx.beginPath();
-            ctx.arc(p.position.x, p.position.y, r * 1.3, 0, Math.PI * 2);
+            ctx.arc(p.position.x, p.position.y, r * 1.5, 0, Math.PI * 2);
             ctx.fillStyle = grad;
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = 'rgba(30, 30, 30, 0.3)';
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = `hsla(${h}, 80%, 50%, 0.3)`;
             ctx.fill();
             ctx.shadowBlur = 0;
             
