@@ -21,16 +21,17 @@ let gridPattern;
 
 function createGridPattern() {
     const pCanvas = document.createElement('canvas');
-    pCanvas.width = 40;
-    pCanvas.height = 40;
+    const size = 100;
+    pCanvas.width = size;
+    pCanvas.height = size;
     const pctx = pCanvas.getContext('2d');
-    pctx.clearRect(0, 0, 40, 40);
+    pctx.clearRect(0, 0, size, size);
     pctx.strokeStyle = '#222';
-    pctx.lineWidth = 1;
+    pctx.lineWidth = 0.5;
     
     pctx.beginPath();
-    pctx.moveTo(0, 0); pctx.lineTo(40, 40);
-    pctx.moveTo(40, 0); pctx.lineTo(0, 40);
+    pctx.moveTo(0, 0); pctx.lineTo(size, size);
+    pctx.moveTo(size, 0); pctx.lineTo(0, size);
     pctx.stroke();
     
     return ctx.createPattern(pCanvas, 'repeat');
@@ -319,7 +320,7 @@ function render() {
         const parts = orbit.body.parts;
         if (currentStyle === 'sketch') {
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 0.5;
             
             // パターン自体を枠の回転に合わせてトランスフォームする
             const matrix = new DOMMatrix()
@@ -366,7 +367,7 @@ function render() {
         
         if (currentStyle === 'sketch') {
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 0.5;
             ctx.stroke();
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
@@ -389,7 +390,7 @@ function render() {
         ctx.arc(holdStartPos.x, holdStartPos.y, radius, 0, Math.PI * 2);
         if (currentStyle === 'sketch') {
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 0.5;
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
             ctx.lineWidth = 2;
