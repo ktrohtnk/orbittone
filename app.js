@@ -17,19 +17,24 @@ engine.gravity.y = 0.2; // 穏やかな重力表現
 let isAudioInitialized = false;
 let synth;
 let currentStyle = 'neon'; // 'neon' or 'sketch'
-let halftonePattern;
+let gridPattern;
 
-function createHalftonePattern() {
+function createGridPattern() {
     const pCanvas = document.createElement('canvas');
-    pCanvas.width = 6;
-    pCanvas.height = 6;
+    pCanvas.width = 40;
+    pCanvas.height = 40;
     const pctx = pCanvas.getContext('2d');
-    pctx.fillStyle = '#f4f4f0'; // Paper color
-    pctx.fillRect(0, 0, 6, 6);
-    pctx.fillStyle = '#d0d0c8'; // Halftone dot color
+    pctx.clearRect(0, 0, 40, 40);
+    pctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    pctx.lineWidth = 0.5;
+    
     pctx.beginPath();
-    pctx.arc(3, 3, 1.5, 0, Math.PI * 2);
-    pctx.fill();
+    pctx.moveTo(0, 0); pctx.lineTo(40, 40);
+    pctx.moveTo(40, 0); pctx.lineTo(0, 40);
+    pctx.moveTo(0, 20); pctx.lineTo(40, 20);
+    pctx.moveTo(0, 40); pctx.lineTo(40, 40);
+    pctx.stroke();
+    
     return ctx.createPattern(pCanvas, 'repeat');
 }
 
@@ -61,7 +66,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     document.getElementById('clear-btn').style.pointerEvents = 'auto';
     document.getElementById('mode-btn').style.opacity = '1';
     document.getElementById('mode-btn').style.pointerEvents = 'auto';
-    halftonePattern = createHalftonePattern();
+    gridPattern = createGridPattern();
     setTimeout(() => {
         document.getElementById('ui-layer').style.display = 'none';
     }, 1000);
@@ -74,7 +79,7 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
     btn.innerText = `Switch Style: ${currentStyle === 'neon' ? 'Neon' : 'Sketch'}`;
     
     if (currentStyle === 'sketch') {
-        document.body.style.background = '#f4f4f0';
+        document.body.style.background = '#eade57'; // 画像の黄色
         btn.style.color = '#222';
         btn.style.borderColor = '#222';
         document.getElementById('clear-btn').style.color = '#222';
@@ -302,7 +307,7 @@ Runner.run(runner, engine);
 // 独自レンダリングループ
 function render() {
     if (currentStyle === 'sketch') {
-        ctx.fillStyle = halftonePattern;
+        ctx.fillStyle = '#eade57';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else {
         // 背景（残像効果＝Trails effect）
@@ -317,6 +322,8 @@ function render() {
         if (currentStyle === 'sketch') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1;
+            ctx.fillStyle = gridPattern; // 枠の内側を格子柄で塗りつぶす
+            
             ctx.beginPath();
             // parts[0]は全体のhullなので除外し、各壁の中心を繋ぐ
             ctx.moveTo(parts[1].position.x, parts[1].position.y);
@@ -324,6 +331,7 @@ function render() {
                 ctx.lineTo(parts[i].position.x, parts[i].position.y);
             }
             ctx.closePath();
+            ctx.fill();
             ctx.stroke();
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
