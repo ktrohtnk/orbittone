@@ -358,9 +358,14 @@ function createOrbitFromPoints(points) {
     const speed = (Math.random() * 0.01) + 0.005;
     const dir = Math.random() > 0.5 ? 1 : -1;
     
+    // リキテンスタイン風ハーフトーンのための網点の間隔（枠の大きさに比例）
+    const size = Math.max(orbitBody.bounds.max.x - orbitBody.bounds.min.x, orbitBody.bounds.max.y - orbitBody.bounds.min.y);
+    const toneSpacing = Math.max(10, size / 15); // 最低10px
+    
     currentOrbits.push({
         body: orbitBody,
-        rotationSpeed: speed * dir
+        rotationSpeed: speed * dir,
+        toneSpacing: toneSpacing
     });
     
     World.add(engine.world, orbitBody);
@@ -474,6 +479,45 @@ function render() {
             for (let i = 1; i < parts.length; i++) {
                 pts.push({ x: parts[i].position.x, y: parts[i].position.y });
             }
+            
+            // --- リキテンスタイン風ハーフトーン（クリッピング） ---
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) {
+                ctx.lineTo(pts[i].x, pts[i].y);
+            }
+            ctx.closePath();
+            ctx.clip(); // これ以降の描画をこの枠の内側に限定
+            
+            ctx.fillStyle = '#222';
+            const spacing = orbit.toneSpacing;
+            const r = spacing * 0.35; // ドットの半径
+            const bounds = orbit.body.bounds;
+            
+            // 回転時に端が切れないよう、バウンディングボックスの最大幅を使って余裕を持たせる
+            const cx = orbit.body.position.x;
+            const cy = orbit.body.position.y;
+            const maxRadius = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y) * 1.5; 
+            
+            // ドットの配置を絶対座標（ワールド座標）にスナップ。枠が回転してもドット柄は真っ直ぐ固定される（スクリーントーン風）
+            const startX = Math.floor((cx - maxRadius) / spacing) * spacing;
+            const endX = Math.ceil((cx + maxRadius) / spacing) * spacing;
+            const startY = Math.floor((cy - maxRadius) / spacing) * spacing;
+            const endY = Math.ceil((cy + maxRadius) / spacing) * spacing;
+            
+            // ポップアート特有の六角形（ハニカム）配列にするため、行ごとにX座標を半分ずらす
+            for (let y = startY; y <= endY; y += spacing) {
+                const row = Math.round(y / spacing);
+                const xOffset = (row % 2 === 0) ? 0 : spacing / 2;
+                for (let x = startX; x <= endX; x += spacing) {
+                    ctx.beginPath();
+                    ctx.arc(x + xOffset, y, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.restore(); // クリッピング解除
+            // ------------------------------------------------
             
             // ベースの手書き風の線
             ctx.strokeStyle = '#222';
