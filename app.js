@@ -22,9 +22,18 @@ let gridPattern;
 let noisePattern;
 let bgGridPattern;
 
-// 手書き風の滲み・ガタガタを描画するためのユーティリティ
-function drawJitterPolygon(ctx, points, jitter, closePath = true) {
+// 手書き風の滲み・ガタガタを描画するためのユーティリティ（シードと角度を使って固定化）
+function drawJitterPolygon(ctx, points, jitter, seed, angle, closePath = true) {
     if (points.length === 0) return;
+    let currentSeed = seed;
+    function rand() {
+        let x = Math.sin(currentSeed++) * 10000;
+        return x - Math.floor(x);
+    }
+    
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    
     ctx.beginPath();
     for (let i = 0; i < (closePath ? points.length : points.length - 1); i++) {
         const p1 = points[i];
@@ -33,35 +42,45 @@ function drawJitterPolygon(ctx, points, jitter, closePath = true) {
         const steps = Math.max(2, Math.floor(dist / 10)); // 10pxごとにポイントを追加
         
         if (i === 0) {
-            ctx.moveTo(p1.x + (Math.random() - 0.5) * jitter, p1.y + (Math.random() - 0.5) * jitter);
+            let lx = (rand() - 0.5) * jitter;
+            let ly = (rand() - 0.5) * jitter;
+            ctx.moveTo(p1.x + lx * cosA - ly * sinA, p1.y + lx * sinA + ly * cosA);
         }
         
         for (let j = 1; j <= steps; j++) {
             const t = j / steps;
             const tx = p1.x + (p2.x - p1.x) * t;
             const ty = p1.y + (p2.y - p1.y) * t;
-            const ox = (Math.random() - 0.5) * jitter;
-            const oy = (Math.random() - 0.5) * jitter;
-            ctx.lineTo(tx + ox, ty + oy);
+            let lx = (rand() - 0.5) * jitter;
+            let ly = (rand() - 0.5) * jitter;
+            ctx.lineTo(tx + lx * cosA - ly * sinA, ty + lx * sinA + ly * cosA);
         }
     }
     if (closePath) ctx.closePath();
 }
 
-function drawJitterCircle(ctx, x, y, radius, jitter) {
+function drawJitterCircle(ctx, x, y, radius, jitter, seed, angle) {
+    let currentSeed = seed;
+    function rand() {
+        let x = Math.sin(currentSeed++) * 10000;
+        return x - Math.floor(x);
+    }
+    
     ctx.beginPath();
-    // 均一になりすぎないようにステップ数を減らして歪ませる
     const steps = Math.max(8, Math.floor(radius / 4)); 
     for (let i = 0; i <= steps; i++) {
-        const angle = (i / steps) * Math.PI * 2;
-        // 半径自体も少しランダムに変動させていびつな形にする
-        const rJitter = radius + (Math.random() - 0.5) * jitter * 2;
-        const ox = (Math.random() - 0.5) * jitter;
-        const oy = (Math.random() - 0.5) * jitter;
-        const tx = x + Math.cos(angle) * rJitter + ox;
-        const ty = y + Math.sin(angle) * rJitter + oy;
-        if (i === 0) ctx.moveTo(tx, ty);
-        else ctx.lineTo(tx, ty);
+        const a = (i / steps) * Math.PI * 2;
+        const rJitter = radius + (rand() - 0.5) * jitter * 2;
+        const lx = Math.cos(a) * rJitter + (rand() - 0.5) * jitter;
+        const ly = Math.sin(a) * rJitter + (rand() - 0.5) * jitter;
+        
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        const worldX = lx * cosA - ly * sinA;
+        const worldY = lx * sinA + ly * cosA;
+        
+        if (i === 0) ctx.moveTo(x + worldX, y + worldY);
+        else ctx.lineTo(x + worldX, y + worldY);
     }
     ctx.closePath();
 }
@@ -303,7 +322,8 @@ function spawnParticle(x, y, duration) {
             color: color,
             hue: hue,
             radius: radius,
-            flash: 0
+            flash: 0,
+            seed: Math.random() * 10000
         }
     });
 
@@ -368,7 +388,9 @@ function createOrbitFromPoints(points) {
     currentOrbits.push({
         body: orbitBody,
         rotationSpeed: speed * dir,
-        toneSpacing: toneSpacing
+        toneSpacing: toneSpacing,
+        maxRadius: size * 1.5, // 半径の最大値を固定してズレを防ぐ
+        seed: Math.random() * 10000
     });
     
     World.add(engine.world, orbitBody);
@@ -502,19 +524,17 @@ function render() {
             const r = spacing * 0.35; // ドットの半径
             const bounds = orbit.body.bounds;
             
-            // ローカル座標での描画範囲
-            const maxRadius = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y); 
-            
-            const startX = -maxRadius;
-            const endX = maxRadius;
-            const startY = -maxRadius;
-            const endY = maxRadius;
+            // ローカル座標での描画範囲（不変のサイズを使い、毎フレームのスライドを防ぐ）
+            const maxRadius = orbit.maxRadius; 
+            const steps = Math.ceil(maxRadius / spacing);
             
             // ポップアート特有の六角形（ハニカム）配列にするため、行ごとにX座標を半分ずらす
-            for (let y = startY; y <= endY; y += spacing) {
-                const row = Math.round(y / spacing);
+            // -steps から steps まで回すことで、(0,0) を基準に完全に固定されたグリッドになる
+            for (let row = -steps; row <= steps; row++) {
+                const y = row * spacing;
                 const xOffset = (row % 2 === 0) ? 0 : spacing / 2;
-                for (let x = startX; x <= endX; x += spacing) {
+                for (let col = -steps; col <= steps; col++) {
+                    const x = col * spacing;
                     ctx.beginPath();
                     ctx.arc(x + xOffset, y, r, 0, Math.PI * 2);
                     ctx.fill();
@@ -524,8 +544,8 @@ function render() {
             // ハーフトーンの上にノイズを重ねて荒らす
             ctx.globalCompositeOperation = 'multiply';
             ctx.globalAlpha = 0.5;
-            // 毎フレームノイズの位置をランダムにずらしてボイリングさせる
-            const noiseMatrix = new DOMMatrix().translate(Math.random() * 100, Math.random() * 100);
+            // 酔いを防ぐため、ノイズは動かさず固定パターンとして描画
+            const noiseMatrix = new DOMMatrix();
             noisePattern.setTransform(noiseMatrix);
             ctx.fillStyle = noisePattern;
             ctx.fillRect(-maxRadius, -maxRadius, maxRadius * 2, maxRadius * 2);
@@ -539,13 +559,13 @@ function render() {
             // ベースの手書き風の線
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1.5;
-            drawJitterPolygon(ctx, pts, 1.5);
+            drawJitterPolygon(ctx, pts, 1.5, orbit.seed, orbit.body.angle);
             ctx.stroke();
             
             // 滲み（インク溜まり）効果のための少し太くて薄い線
             ctx.strokeStyle = 'rgba(34, 34, 34, 0.2)';
             ctx.lineWidth = 3.0;
-            drawJitterPolygon(ctx, pts, 2.5);
+            drawJitterPolygon(ctx, pts, 2.5, orbit.seed + 1, orbit.body.angle);
             ctx.stroke();
             
         } else {
@@ -569,7 +589,8 @@ function render() {
         if (currentStyle === 'print') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1.0;
-            drawJitterPolygon(ctx, drawPoints, 1.5, false);
+            // 描画中は固定シードと角度0を渡してブレないようにする
+            drawJitterPolygon(ctx, drawPoints, 1.5, 0, 0, false);
             ctx.stroke();
         } else {
             ctx.beginPath();
@@ -603,7 +624,8 @@ function render() {
         if (currentStyle === 'print') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1.5;
-            drawJitterCircle(ctx, holdStartPos.x, holdStartPos.y, radius, 1.5);
+            // プレビュー中は固定シードでブレないようにする
+            drawJitterCircle(ctx, holdStartPos.x, holdStartPos.y, radius, 1.5, 0, 0);
             ctx.stroke();
         } else {
             ctx.beginPath();
@@ -662,14 +684,14 @@ function render() {
             const r = p.plugin.radius;
             
             // 玉の形が均一にならないよう、半径に応じた強めのジッター（歪み）を加える
-            drawJitterCircle(ctx, p.position.x, p.position.y, r, r * 0.15 + 1.5);
+            drawJitterCircle(ctx, p.position.x, p.position.y, r, r * 0.15 + 1.5, p.plugin.seed, p.angle);
             ctx.fillStyle = p.plugin.color;
             ctx.fill();
             
             // ノイズを重ねて荒らす
             ctx.globalCompositeOperation = 'multiply';
             ctx.globalAlpha = 0.5;
-            const noiseMatrix = new DOMMatrix().translate(Math.random() * 100, Math.random() * 100);
+            const noiseMatrix = new DOMMatrix(); // 酔いを防ぐためノイズ固定
             noisePattern.setTransform(noiseMatrix);
             ctx.fillStyle = noisePattern;
             ctx.fill(); // 今描いた玉のパス内側にだけノイズが適用される
