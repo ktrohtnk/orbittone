@@ -16,7 +16,7 @@ engine.gravity.y = 0.2; // 穏やかな重力表現
 
 let isAudioInitialized = false;
 let synth;
-let currentStyle = 'neon'; // 'neon' or 'sketch'
+let currentStyle = 'sketch'; // 'neon' or 'sketch' by default
 let gridPattern;
 let noisePattern;
 
@@ -94,7 +94,7 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     currentStyle = currentStyle === 'neon' ? 'sketch' : 'neon';
     const btn = document.getElementById('mode-btn');
-    btn.innerText = `Switch Style: ${currentStyle === 'neon' ? 'Neon' : 'Sketch'}`;
+    btn.innerText = `Switch Style: ${currentStyle === 'neon' ? 'Sketch' : 'Neon'}`;
     
     if (currentStyle === 'sketch') {
         document.body.style.background = '#eade57'; // 画像の黄色
