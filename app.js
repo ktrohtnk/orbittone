@@ -643,30 +643,50 @@ Events.on(engine, 'collisionStart', function(event) {
                     } else if (currentStyle === 'print') {
                         // --- Print: ノイズエレクトロニカ (Oval/Fennesz/Múm) ---
                         
-                        // 1. Fennesz風歪みギター音、またはMúm風キラキラ水滴音のトリガー
-                        if (particle.plugin.radius > 50) {
-                            printDrone.triggerAttackRelease(note, duration, undefined, vol * 0.8);
-                            printSynth.triggerAttackRelease(note, duration * 0.8, undefined, vol * 0.4);
-                        } else {
-                            // 小さい玉は歪みシンセを避け、クリーンな水滴ピチャ音（スイープサイン波）をトリガー
+                        const isOneClick = particle.plugin.radius < 15; // ワンクリック（タップ）で即生成される極小玉
+                        
+                        if (isOneClick) {
+                            // 【ワンクリックの極小玉】
+                            // 歪みシンセを避け、クリーンな水滴ピチャ音（スイープサイン波）をトリガー
                             const freq = Tone.Frequency(note).toFrequency();
                             printLiquidSynth.triggerAttackRelease(freq, 0.08, undefined, vol * 0.85);
                             
                             // ピッチスイープ（1.6倍の超高音から本来の周波数へ0.03秒で急降下させ、みずみずしい「ピチャッ」感を出す）
                             printLiquidSynth.frequency.setValueAtTime(freq * 1.6, Tone.now());
                             printLiquidSynth.frequency.exponentialRampToValueAtTime(freq, Tone.now() + 0.03);
-                        }
-                        
-                        // 2. Oval風の微細なグリッチノイズクリックのトリガー (痛くないようマイルドに調整)
-                        if (printGlitchEnv && printGlitchFilter) {
-                            // 周波数の上限を下げてマイルドに（痛い超高音をカット）
-                            const glitchFreq = Math.min(1500 + (105 - particle.plugin.radius) * 100 + Math.random() * 2000, 9500);
-                            printGlitchFilter.frequency.value = glitchFreq;
                             
-                            // グリッチ音量もマイルドに引き下げ
-                            const glitchVol = vol * (0.5 - (particle.plugin.radius / 200));
-                            if (glitchVol > 0.02) {
-                                printGlitchEnv.triggerAttackRelease(0.003 + Math.random() * 0.01, undefined, glitchVol);
+                            // モード切り替え時に似た「プチプチパチッ」というきらめく高速グリッチをトリガー
+                            if (printGlitchFilter && printGlitchEnv) {
+                                printGlitchFilter.frequency.value = 3500 + Math.random() * 1000;
+                                printGlitchEnv.triggerAttackRelease(0.03, undefined, vol * 0.8);
+                                setTimeout(() => {
+                                    printGlitchFilter.frequency.value = 8500 + Math.random() * 1000;
+                                    printGlitchEnv.triggerAttackRelease(0.015, undefined, vol * 0.7);
+                                }, 30);
+                                setTimeout(() => {
+                                    printGlitchFilter.frequency.value = 13500 + Math.random() * 1000;
+                                    printGlitchEnv.triggerAttackRelease(0.01, undefined, vol * 0.5);
+                                }, 60);
+                            }
+                        } else {
+                            // 【長押しで少しでも大きくした中・大サイズの玉】
+                            // Fennesz風の歪みギターアンビエント音を復活
+                            if (particle.plugin.radius > 50) {
+                                printDrone.triggerAttackRelease(note, duration, undefined, vol * 0.8);
+                                printSynth.triggerAttackRelease(note, duration * 0.8, undefined, vol * 0.4);
+                            } else {
+                                printSynth.triggerAttackRelease(note, duration * 0.4, undefined, vol * 0.7);
+                            }
+                            
+                            // 通常のグリッチクリック（マイルドなノイズ）をブレンド
+                            if (printGlitchEnv && printGlitchFilter) {
+                                const glitchFreq = Math.min(1500 + (105 - particle.plugin.radius) * 100 + Math.random() * 2000, 9500);
+                                printGlitchFilter.frequency.value = glitchFreq;
+                                
+                                const glitchVol = vol * (0.5 - (particle.plugin.radius / 200));
+                                if (glitchVol > 0.02) {
+                                    printGlitchEnv.triggerAttackRelease(0.003 + Math.random() * 0.01, undefined, glitchVol);
+                                }
                             }
                         }
                     }
