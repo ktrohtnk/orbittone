@@ -54,7 +54,7 @@ function drawJitterPolygon(ctx, points, jitter, seed, angle, closePath = true) {
     let startX = 0, startY = 0;
     
     // 切手やパイ生地のような規則的な「波々・ギザギザ」の設定
-    const targetWaveLength = 12; // 波の幅
+    const targetWaveLength = 24; // 波の幅（大きくしてギザギザの数を減らす）
     const waveAmp = Math.min(jitter * 1.5, 4.0); // 振幅（大きくなりすぎないように制限）
     
     for (let i = 0; i < (closePath ? points.length : points.length - 1); i++) {
@@ -808,15 +808,15 @@ function render() {
             ctx.fill();
             ctx.stroke();
         } else if (currentStyle === 'print') {
-            // ベースの手書き風の線（なぞった時と同じ太さ 1.0）
+            // ベースの手書き風の線（線を細く）
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1.0;
+            ctx.lineWidth = 0.8;
             drawJitterPolygon(ctx, pts, 1.5, orbit.seed, orbit.body.angle);
             ctx.stroke();
             
-            // 滲み（インク溜まり）効果のための少し太くて薄い線（控えめに）
+            // 滲み（インク溜まり）効果のための線（細く）
             ctx.strokeStyle = 'rgba(34, 34, 34, 0.15)';
-            ctx.lineWidth = 2.0;
+            ctx.lineWidth = 1.5;
             drawJitterPolygon(ctx, pts, 2.5, orbit.seed + 1, orbit.body.angle);
             ctx.stroke();
             
@@ -840,7 +840,7 @@ function render() {
     if (isDrawingPath && drawPoints.length > 0) {
         if (currentStyle === 'print') {
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1.0;
+            ctx.lineWidth = 0.8;
             // 描画中は固定シードと角度0を渡してブレないようにする
             drawJitterPolygon(ctx, drawPoints, 1.5, 0, 0, false);
             ctx.stroke();
@@ -876,7 +876,7 @@ function render() {
         if (currentStyle === 'print') {
             const hue = 180 + (clampedDuration / 5000) * 160;
             ctx.strokeStyle = `hsl(${hue}, 80%, 75%)`;
-            ctx.lineWidth = 4.0;
+            ctx.lineWidth = 1.5; // 玉の線も細くする
             // プレビュー時と生成時でシード値とジッター量（歪み具合）を完全に一致させる
             drawJitterCircle(ctx, holdStartPos.x, holdStartPos.y, radius, radius * 0.15 + 1.5, currentHoldSeed, 0);
             ctx.stroke();
@@ -941,7 +941,7 @@ function render() {
             
             // 塗りつぶしなし、色付きの太い線のみ
             ctx.strokeStyle = p.plugin.color;
-            ctx.lineWidth = 4.0;
+            ctx.lineWidth = 1.5; // 生成された玉の線も細く
             ctx.stroke();
             
             if (p.plugin.flash > 0) p.plugin.flash -= 0.1;
