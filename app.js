@@ -418,8 +418,8 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
             // 優しいサイン波のサイン音
             synth.triggerAttackRelease("E5", "4n", undefined, 0.4);
         } else if (currentStyle === 'neon') {
-            // スティールパン風のよりきらびやかで広いトランジション和音
-            neonSynth.triggerAttackRelease(["E4", "B4", "F#5", "C#6"], "4n", undefined, 0.6);
+            // UIとしての控えめな切り替え音（音量と響きを最小限に抑えた単音）
+            neonSynth.triggerAttackRelease("A4", "8n", undefined, 0.05);
         } else if (currentStyle === 'print') {
             // Múm風レコードクラックルの再生開始
             printCrackle.start();
