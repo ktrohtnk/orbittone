@@ -22,6 +22,20 @@ let gridPattern;
 let noisePattern;
 let bgGridPattern;
 
+// Neon モード用音響
+let neonSynth;
+let neonDrone;
+
+// Print モード用音響（Oval/Fennesz/Múmインスパイア）
+let printSynth;        // Fennesz風ディストーションシンセ
+let printDrone;        // 重厚なディストーションドローン
+let printGlitch;       // Oval風グリッチノイズ源
+let printGlitchEnv;    // グリッチ用エンベロープ
+let printGlitchFilter;  // グリッチ用可変フィルター
+let printCrackle;      // Múm風レコードパチパチ音
+let printCrackleVol;   // レコードパチパチ音ボリューム
+
+
 // 手書き風の滲み・ガタガタを描画するためのユーティリティ（シードと角度を使って固定化）
 function drawJitterPolygon(ctx, points, jitter, seed, angle, closePath = true) {
     if (points.length === 0) return;
@@ -145,6 +159,7 @@ bgGridPattern = createBgGridPattern();
 document.getElementById('start-btn').addEventListener('click', async () => {
     await Tone.start();
     
+    // --- Sketch Mode ---
     // アンビエントで柔らかい音色（サイン波）の設定
     synth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "sine" },
@@ -160,7 +175,6 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    
     synth.volume.value = -8;
     
     // 低音用の倍音豊かなドローンシンセ
@@ -184,6 +198,125 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     );
     droneSynth.volume.value = -14; // うるさすぎないように調整
     
+    // --- Neon Mode ---
+    // 金属的できらびやかなFMシンセサイザー（ネオンの輝き表現）
+    neonSynth = new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 3.5,
+        modulationIndex: 5,
+        oscillator: { type: "sine" },
+        envelope: {
+            attack: 0.01,
+            decay: 0.4,
+            sustain: 0.1,
+            release: 1.5
+        },
+        modulation: { type: "square" },
+        modulationEnvelope: {
+            attack: 0.02,
+            decay: 0.2,
+            sustain: 0,
+            release: 1.0
+        }
+    }).chain(
+        new Tone.PingPongDelay("4n", 0.5), // 左右に飛び交うステレオディレイ
+        new Tone.Reverb({ decay: 6, wet: 0.5 }),
+        new Tone.Limiter(-2),
+        Tone.Destination
+    );
+    neonSynth.volume.value = -14;
+
+    // ゆったり揺らめくスペーシードローン
+    neonDrone = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "triangle" },
+        envelope: {
+            attack: 2.0,
+            decay: 1.0,
+            sustain: 0.8,
+            release: 3.0
+        }
+    }).chain(
+        new Tone.Chorus(4, 2.5, 0.5),
+        new Tone.FeedbackDelay("2n", 0.6),
+        new Tone.Reverb({ decay: 12, wet: 0.7 }),
+        new Tone.Limiter(-2),
+        Tone.Destination
+    );
+    neonDrone.volume.value = -20;
+
+    // --- Print Mode (Oval/Fennesz/Múm inspired Noise-Electronica) ---
+    // Fennesz風ディストーション・フィードバックギターシンセ
+    const printDist = new Tone.Distortion(0.55); // ほどよい歪み
+    const printCrusher = new Tone.BitCrusher(6); // ローファイ感
+    const printFilter = new Tone.Filter(1800, "lowpass");
+    const printDelay = new Tone.FeedbackDelay("6n", 0.65); // 高いフィードバック値でノイズを誘発
+    const printReverb = new Tone.Reverb({ decay: 10, wet: 0.75 }); // 空間を飽和させる深残響
+    
+    printSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sawtooth" }, // 歪ませるためのこぎり波
+        envelope: {
+            attack: 0.15,
+            decay: 0.3,
+            sustain: 0.6,
+            release: 3.5
+        }
+    }).chain(printDist, printCrusher, printFilter, printDelay, printReverb, new Tone.Limiter(-2), Tone.Destination);
+    printSynth.volume.value = -16; // 歪みで音が大きくなるため音量は控えめ
+
+    // 重厚なディストーションドローン（大きい玉用）
+    printDrone = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "square" },
+        envelope: {
+            attack: 0.8,
+            decay: 0.5,
+            sustain: 0.7,
+            release: 4.5
+        }
+    }).chain(
+        new Tone.Filter(250, "lowpass"),
+        new Tone.Distortion(0.3),
+        new Tone.Reverb({ decay: 8, wet: 0.8 }),
+        new Tone.Limiter(-2),
+        Tone.Destination
+    );
+    printDrone.volume.value = -20;
+
+    // Oval風グリッチノイズジェネレータ
+    printGlitch = new Tone.Noise("pink");
+    printGlitchEnv = new Tone.AmplitudeEnvelope({
+        attack: 0.001,
+        decay: 0.015,
+        sustain: 0,
+        release: 0.015
+    });
+    printGlitchFilter = new Tone.Filter({
+        type: "bandpass",
+        frequency: 5000,
+        Q: 8
+    });
+    
+    printGlitch.connect(printGlitchEnv);
+    printGlitchEnv.connect(printGlitchFilter);
+    printGlitchFilter.chain(
+        new Tone.FeedbackDelay("16n", 0.3),
+        new Tone.Reverb({ decay: 3, wet: 0.4 }),
+        new Tone.Limiter(-2),
+        Tone.Destination
+    );
+    printGlitch.start(); // 常時再生させ、エンベロープで発音させる
+
+    // Múm風アナログレコードパチパチ音（背景音）
+    printCrackle = new Tone.Noise("white");
+    printCrackleVol = new Tone.Volume(-45); // かすかに聴こえるレベル
+    const printCrackleFilter = new Tone.Filter({
+        type: "bandpass",
+        frequency: 9500,
+        Q: 6
+    });
+    
+    printCrackle.connect(printCrackleFilter);
+    printCrackleFilter.connect(printCrackleVol);
+    printCrackleVol.toDestination();
+    
     isAudioInitialized = true;
     document.getElementById('ui-layer').style.opacity = '0';
     document.getElementById('clear-btn').style.opacity = '1';
@@ -194,6 +327,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         document.getElementById('ui-layer').style.display = 'none';
     }, 1000);
 });
+
 
 document.getElementById('mode-btn').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -226,6 +360,36 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
         btn.style.borderColor = '#222';
         document.getElementById('clear-btn').style.color = '#222';
         document.getElementById('clear-btn').style.borderColor = '#222';
+    }
+
+    // モード切り替え時の遷移サウンド演出 & 定常ノイズコントロール
+    if (isAudioInitialized) {
+        if (printCrackle) printCrackle.stop();
+
+        if (currentStyle === 'sketch') {
+            // 優しいサイン波のサイン音
+            synth.triggerAttackRelease("E5", "4n", undefined, 0.4);
+        } else if (currentStyle === 'neon') {
+            // ネオンのまたたきのような澄んだSFX音
+            neonSynth.triggerAttackRelease("A5", "8n", undefined, 0.3);
+            setTimeout(() => neonSynth.triggerAttackRelease("E6", "8n", undefined, 0.3), 80);
+        } else if (currentStyle === 'print') {
+            // Múm風レコードクラックルの再生開始
+            printCrackle.start();
+            // Oval風の微細なプチプチグリッチスイープ
+            if (printGlitchFilter && printGlitchEnv) {
+                printGlitchFilter.frequency.value = 4000;
+                printGlitchEnv.triggerAttackRelease(0.04, undefined, 0.6);
+                setTimeout(() => {
+                    printGlitchFilter.frequency.value = 9000;
+                    printGlitchEnv.triggerAttackRelease(0.015, undefined, 0.6);
+                }, 40);
+                setTimeout(() => {
+                    printGlitchFilter.frequency.value = 14000;
+                    printGlitchEnv.triggerAttackRelease(0.01, undefined, 0.4);
+                }, 80);
+            }
+        }
     }
 });
 
@@ -442,12 +606,45 @@ Events.on(engine, 'collisionStart', function(event) {
                     // 半径(5〜105程度)に基づいて発音時間(秒)を計算
                     const duration = 0.2 + (particle.plugin.radius / 100) * 4.0;
                     
-                    if (particle.plugin.radius > 50) {
-                        // サイズが大きい（低音）場合は倍音豊かなドローンシンセを重ねる
-                        droneSynth.triggerAttackRelease(note, duration, undefined, vol * 0.8);
-                        synth.triggerAttackRelease(note, duration, undefined, vol * 0.4);
-                    } else {
-                        synth.triggerAttackRelease(note, duration, undefined, vol);
+                    if (currentStyle === 'sketch') {
+                        // --- Sketch: 優しいアコースティックアンビエント ---
+                        if (particle.plugin.radius > 50) {
+                            droneSynth.triggerAttackRelease(note, duration, undefined, vol * 0.8);
+                            synth.triggerAttackRelease(note, duration, undefined, vol * 0.4);
+                        } else {
+                            synth.triggerAttackRelease(note, duration, undefined, vol);
+                        }
+                    } else if (currentStyle === 'neon') {
+                        // --- Neon: 金属的・スペーシーアンビエント ---
+                        if (particle.plugin.radius > 50) {
+                            neonDrone.triggerAttackRelease(note, duration, undefined, vol * 0.7);
+                            neonSynth.triggerAttackRelease(note, duration * 0.5, undefined, vol * 0.5);
+                        } else {
+                            neonSynth.triggerAttackRelease(note, duration * 0.3, undefined, vol);
+                        }
+                    } else if (currentStyle === 'print') {
+                        // --- Print: ノイズエレクトロニカ (Oval/Fennesz/Múm) ---
+                        
+                        // 1. Fennesz風の歪みギターアンビエント音のトリガー
+                        if (particle.plugin.radius > 50) {
+                            printDrone.triggerAttackRelease(note, duration, undefined, vol * 0.8);
+                            printSynth.triggerAttackRelease(note, duration * 0.8, undefined, vol * 0.4);
+                        } else {
+                            printSynth.triggerAttackRelease(note, duration * 0.4, undefined, vol * 0.7);
+                        }
+                        
+                        // 2. Oval風の微細なグリッチノイズクリックのトリガー
+                        if (printGlitchEnv && printGlitchFilter) {
+                            // 小さい玉ほど高周波数のピシッとしたクリックに、大きい玉ほど中音域のノイズに
+                            const glitchFreq = Math.min(1800 + (105 - particle.plugin.radius) * 130 + Math.random() * 3000, 15000);
+                            printGlitchFilter.frequency.value = glitchFreq;
+                            
+                            // 小さい玉ほどグリッチがハッキリ前面に聴こえるようにブレンド
+                            const glitchVol = vol * (1.2 - (particle.plugin.radius / 100));
+                            if (glitchVol > 0.05) {
+                                printGlitchEnv.triggerAttackRelease(0.005 + Math.random() * 0.02, undefined, glitchVol);
+                            }
+                        }
                     }
                     
                     // 視覚的なフラッシュ効果
