@@ -47,10 +47,15 @@ function drawJitterPolygon(ctx, points, jitter, seed, angle, closePath = true) {
         return x - Math.floor(x);
     }
     
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    
     const cosA = Math.cos(angle);
     const sinA = Math.sin(angle);
     
     ctx.beginPath();
+    let startX = 0, startY = 0;
+    
     for (let i = 0; i < (closePath ? points.length : points.length - 1); i++) {
         const p1 = points[i];
         const p2 = points[(i + 1) % points.length];
@@ -60,16 +65,23 @@ function drawJitterPolygon(ctx, points, jitter, seed, angle, closePath = true) {
         if (i === 0) {
             let lx = (rand() - 0.5) * jitter;
             let ly = (rand() - 0.5) * jitter;
-            ctx.moveTo(p1.x + lx * cosA - ly * sinA, p1.y + lx * sinA + ly * cosA);
+            startX = p1.x + lx * cosA - ly * sinA;
+            startY = p1.y + lx * sinA + ly * cosA;
+            ctx.moveTo(startX, startY);
         }
         
         for (let j = 1; j <= steps; j++) {
-            const t = j / steps;
-            const tx = p1.x + (p2.x - p1.x) * t;
-            const ty = p1.y + (p2.y - p1.y) * t;
-            let lx = (rand() - 0.5) * jitter;
-            let ly = (rand() - 0.5) * jitter;
-            ctx.lineTo(tx + lx * cosA - ly * sinA, ty + lx * sinA + ly * cosA);
+            // 閉じる場合、最後のセグメントの最終点は必ず開始点と完全に一致させる（棘・バリを防ぐため）
+            if (closePath && i === points.length - 1 && j === steps) {
+                ctx.lineTo(startX, startY);
+            } else {
+                const t = j / steps;
+                const tx = p1.x + (p2.x - p1.x) * t;
+                const ty = p1.y + (p2.y - p1.y) * t;
+                let lx = (rand() - 0.5) * jitter;
+                let ly = (rand() - 0.5) * jitter;
+                ctx.lineTo(tx + lx * cosA - ly * sinA, ty + lx * sinA + ly * cosA);
+            }
         }
     }
     if (closePath) ctx.closePath();
