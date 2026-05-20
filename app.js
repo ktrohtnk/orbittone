@@ -229,14 +229,23 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     );
     neonSynth.volume.value = 2.0; // Boost volume so high notes are audible
 
-    // ゆったり揺らめくスペーシードローン
-    neonDrone = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "triangle" },
+    // 低音部もスティールパンのような打楽器的な響きに (Bass Steelpan)
+    neonDrone = new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 1.18,
+        modulationIndex: 2.5, // 低音は変調を少し抑えめに
+        oscillator: { type: "sine" },
         envelope: {
-            attack: 2.0,
-            decay: 1.0,
-            sustain: 0.8,
-            release: 3.0
+            attack: 0.02, // ベースパンのようなやや重いアタック
+            decay: 0.6,
+            sustain: 0.3, // 余韻を残す
+            release: 3.5
+        },
+        modulation: { type: "sine" },
+        modulationEnvelope: {
+            attack: 0.02,
+            decay: 0.4,
+            sustain: 0.0,
+            release: 2.0
         }
     }).chain(
         new Tone.Chorus(4, 2.5, 0.5),
@@ -245,7 +254,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonDrone.volume.value = -20;
+    neonDrone.volume.value = -6; // FMSynthに合わせて音量を調整
 
     // --- Print Mode (Oval/Fennesz/Múm inspired Noise-Electronica) ---
     // Fennesz風ディストーション・フィードバックギターシンセ
