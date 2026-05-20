@@ -50,37 +50,52 @@ function drawJitterPolygon(ctx, points, jitter, seed, angle, closePath = true) {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     
-    const cosA = Math.cos(angle);
-    const sinA = Math.sin(angle);
-    
     ctx.beginPath();
     let startX = 0, startY = 0;
+    
+    // 切手やパイ生地のような規則的な「波々・ギザギザ」の設定
+    const targetWaveLength = 12; // 波の幅
+    const waveAmp = Math.min(jitter * 1.5, 4.0); // 振幅（大きくなりすぎないように制限）
     
     for (let i = 0; i < (closePath ? points.length : points.length - 1); i++) {
         const p1 = points[i];
         const p2 = points[(i + 1) % points.length];
         const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-        const steps = Math.max(2, Math.floor(dist / 10)); // 10pxごとにポイントを追加
+        
+        // この線分にぴったり収まる波の数を計算（端点で必ず波がゼロになり綺麗に繋がる）
+        const numWaves = Math.max(1, Math.round(dist / targetWaveLength));
+        
+        // 1波長あたり6分割程度で滑らかに描画
+        const steps = Math.max(2, numWaves * 6); 
+        
+        // 法線ベクトル
+        const nx = -(p2.y - p1.y) / dist;
+        const ny = (p2.x - p1.x) / dist;
         
         if (i === 0) {
-            let lx = (rand() - 0.5) * jitter;
-            let ly = (rand() - 0.5) * jitter;
-            startX = p1.x + lx * cosA - ly * sinA;
-            startY = p1.y + lx * sinA + ly * cosA;
+            startX = p1.x;
+            startY = p1.y;
             ctx.moveTo(startX, startY);
         }
         
         for (let j = 1; j <= steps; j++) {
-            // 閉じる場合、最後のセグメントの最終点は必ず開始点と完全に一致させる（棘・バリを防ぐため）
             if (closePath && i === points.length - 1 && j === steps) {
+                // 最後の点は必ず開始点に閉じる
                 ctx.lineTo(startX, startY);
             } else {
                 const t = j / steps;
+                
+                // 正弦波で波打たせる。t=0とt=1で必ず0になる
+                const offset = Math.sin(t * numWaves * Math.PI * 2) * waveAmp;
+                
                 const tx = p1.x + (p2.x - p1.x) * t;
                 const ty = p1.y + (p2.y - p1.y) * t;
-                let lx = (rand() - 0.5) * jitter;
-                let ly = (rand() - 0.5) * jitter;
-                ctx.lineTo(tx + lx * cosA - ly * sinA, ty + lx * sinA + ly * cosA);
+                
+                // アナログ感を出すためのごく僅かな手ブレ
+                let lx = (rand() - 0.5) * Math.min(jitter * 0.5, 1.0);
+                let ly = (rand() - 0.5) * Math.min(jitter * 0.5, 1.0);
+                
+                ctx.lineTo(tx + nx * offset + lx, ty + ny * offset + ly);
             }
         }
     }
