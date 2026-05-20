@@ -107,18 +107,44 @@ function drawJitterCircle(ctx, x, y, radius, jitter, seed, angle) {
     // 半径5〜105の範囲を3〜12角形にマッピングする
     const sides = Math.min(12, Math.max(3, Math.floor(3 + ((radius - 5) / 100) * 9)));
     
-    const pts = [];
-    for (let i = 0; i < sides; i++) {
-        // 多角形全体が物理演算の回転（angle）に合わせて回るようにする
-        const a = (i / sides) * Math.PI * 2 + angle;
-        pts.push({
-            x: x + Math.cos(a) * radius,
-            y: y + Math.sin(a) * radius
-        });
+    let currentSeed = seed;
+    function rand() {
+        let val = Math.sin(currentSeed++) * 10000;
+        return val - Math.floor(val);
     }
     
-    // 多角形の各辺を手書き風に歪ませて描画する
-    drawJitterPolygon(ctx, pts, jitter, seed, angle, true);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    
+    ctx.beginPath();
+    let startX = 0, startY = 0;
+    
+    for (let i = 0; i <= sides; i++) {
+        if (i === sides) {
+            // 最後の点は必ず開始点に閉じる（バリを防ぐため）
+            ctx.lineTo(startX, startY);
+        } else {
+            // 多角形全体が物理演算の回転（angle）に合わせて回るようにする
+            const a = (i / sides) * Math.PI * 2 + angle;
+            
+            // 玉（Particle）には切手の波々効果は適用せず、頂点ごとにわずかな手描き風のブレだけを加える
+            // これにより、三角や四角の元の形が崩れすぎず綺麗に見える
+            const rJitter = radius + (rand() - 0.5) * Math.min(jitter, 3.0);
+            const aJitter = a + (rand() - 0.5) * 0.1;
+            
+            const px = x + Math.cos(aJitter) * rJitter;
+            const py = y + Math.sin(aJitter) * rJitter;
+            
+            if (i === 0) {
+                startX = px;
+                startY = py;
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+    }
+    ctx.closePath();
 }
 
 function createBgGridPattern() {
@@ -808,15 +834,15 @@ function render() {
             ctx.fill();
             ctx.stroke();
         } else if (currentStyle === 'print') {
-            // ベースの手書き風の線（線を細く）
+            // ベースの手書き風の線（さっきの太さ 1.0 に戻す）
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 0.8;
+            ctx.lineWidth = 1.0;
             drawJitterPolygon(ctx, pts, 1.5, orbit.seed, orbit.body.angle);
             ctx.stroke();
             
-            // 滲み（インク溜まり）効果のための線（細く）
+            // 滲み（インク溜まり）効果のための線（さっきの太さ 2.0 に戻す）
             ctx.strokeStyle = 'rgba(34, 34, 34, 0.15)';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 2.0;
             drawJitterPolygon(ctx, pts, 2.5, orbit.seed + 1, orbit.body.angle);
             ctx.stroke();
             
@@ -840,7 +866,7 @@ function render() {
     if (isDrawingPath && drawPoints.length > 0) {
         if (currentStyle === 'print') {
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 0.8;
+            ctx.lineWidth = 1.0; // さっきの太さに戻す
             // 描画中は固定シードと角度0を渡してブレないようにする
             drawJitterPolygon(ctx, drawPoints, 1.5, 0, 0, false);
             ctx.stroke();
