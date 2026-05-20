@@ -258,7 +258,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
 
     // 消えゆく際のチリチリとした綺麗なノイズ（細かい粒）
     neonNoise = new Tone.NoiseSynth({
-        noise: { type: "pink" },
+        noise: { type: "white" }, // ホワイトノイズに変更
         envelope: {
             attack: 2.0, // 音が減衰する頃にゆっくり立ち上がる
             decay: 1.0,
@@ -267,9 +267,8 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         }
     }).chain(
         new Tone.Filter(8000, "highpass"), // 細かい粒のみを通す
-        new Tone.Chorus(4, 3.5, 0.6),
         new Tone.FeedbackDelay("8n", 0.4),
-        new Tone.Reverb({ decay: 10, wet: 0.8 }),
+        new Tone.Reverb({ decay: 15, wet: 1.0 }), // リバーブを最強に
         new Tone.Limiter(-2),
         Tone.Destination
     );
@@ -419,8 +418,8 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
             // 優しいサイン波のサイン音
             synth.triggerAttackRelease("E5", "4n", undefined, 0.4);
         } else if (currentStyle === 'neon') {
-            // スティールパン風の新しいトランジション和音
-            neonSynth.triggerAttackRelease(["C5", "G5", "E6"], "4n", undefined, 0.5);
+            // スティールパン風のよりきらびやかで広いトランジション和音
+            neonSynth.triggerAttackRelease(["E4", "B4", "F#5", "C#6"], "4n", undefined, 0.6);
         } else if (currentStyle === 'print') {
             // Múm風レコードクラックルの再生開始
             printCrackle.start();
