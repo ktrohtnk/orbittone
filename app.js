@@ -589,6 +589,12 @@ function createOrbitFromPoints(points) {
         isStatic: true
     });
     
+    // 描いた軌跡の頂点を、結合されたボディのローカル座標として保存する（描画時に正確な形を復元するため）
+    const localPoints = simplified.map(p => ({
+        x: p.x - orbitBody.position.x,
+        y: p.y - orbitBody.position.y
+    }));
+    
     // ランダムな回転速度（有機的なゆったりとした回転）
     const speed = (Math.random() * 0.01) + 0.005;
     const dir = Math.random() > 0.5 ? 1 : -1;
@@ -601,6 +607,7 @@ function createOrbitFromPoints(points) {
         body: orbitBody,
         rotationSpeed: speed * dir,
         toneSpacing: toneSpacing,
+        localPoints: localPoints, // なぞった形を完全に保持
         maxRadius: size * 1.5, // 半径の最大値を固定してズレを防ぐ
         seed: Math.random() * 10000
     });
@@ -751,7 +758,14 @@ function render() {
     // 枠（Orbit）の描画
     ctx.globalCompositeOperation = 'source-over';
     currentOrbits.forEach(orbit => {
-        const parts = orbit.body.parts;
+        // ローカル座標から現在の回転・位置を適用してワールド座標の頂点を計算
+        const cosA = Math.cos(orbit.body.angle);
+        const sinA = Math.sin(orbit.body.angle);
+        const pts = orbit.localPoints.map(p => ({
+            x: orbit.body.position.x + (p.x * cosA - p.y * sinA),
+            y: orbit.body.position.y + (p.x * sinA + p.y * cosA)
+        }));
+
         if (currentStyle === 'sketch') {
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 0.5;
@@ -764,40 +778,35 @@ function render() {
             ctx.fillStyle = gridPattern; 
             
             ctx.beginPath();
-            ctx.moveTo(parts[1].position.x, parts[1].position.y);
-            for (let i = 2; i < parts.length; i++) {
-                ctx.lineTo(parts[i].position.x, parts[i].position.y);
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) {
+                ctx.lineTo(pts[i].x, pts[i].y);
             }
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
         } else if (currentStyle === 'print') {
-            const pts = [];
-            for (let i = 1; i < parts.length; i++) {
-                pts.push({ x: parts[i].position.x, y: parts[i].position.y });
-            }
-            
-            // ベースの手書き風の線
+            // ベースの手書き風の線（なぞった時と同じ太さ 1.0）
             ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.0;
             drawJitterPolygon(ctx, pts, 1.5, orbit.seed, orbit.body.angle);
             ctx.stroke();
             
-            // 滲み（インク溜まり）効果のための少し太くて薄い線
-            ctx.strokeStyle = 'rgba(34, 34, 34, 0.2)';
-            ctx.lineWidth = 3.0;
+            // 滲み（インク溜まり）効果のための少し太くて薄い線（控えめに）
+            ctx.strokeStyle = 'rgba(34, 34, 34, 0.15)';
+            ctx.lineWidth = 2.0;
             drawJitterPolygon(ctx, pts, 2.5, orbit.seed + 1, orbit.body.angle);
             ctx.stroke();
             
         } else {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; 
-            ctx.lineWidth = 4; // さっきの太さに戻す
+            ctx.lineWidth = 2; // なぞった時と同じ太さ 2 に統一
             ctx.shadowBlur = 10;
             ctx.shadowColor = 'rgba(100, 200, 255, 0.5)'; 
             ctx.beginPath();
-            ctx.moveTo(parts[1].position.x, parts[1].position.y);
-            for (let i = 2; i < parts.length; i++) {
-                ctx.lineTo(parts[i].position.x, parts[i].position.y);
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) {
+                ctx.lineTo(pts[i].x, pts[i].y);
             }
             ctx.closePath();
             ctx.stroke();
