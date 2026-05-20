@@ -113,34 +113,69 @@ function drawJitterCircle(ctx, x, y, radius, jitter, seed, angle) {
         return val - Math.floor(val);
     }
     
+    // ベースとなる多角形の頂点を生成
+    const points = [];
+    for (let i = 0; i < sides; i++) {
+        const a = (i / sides) * Math.PI * 2 + angle;
+        // 頂点自体のアナログなブレ（半径に応じたわずかなブレ）
+        const rJitter = radius + (rand() - 0.5) * Math.min(jitter * 0.3, 1.5);
+        const aJitter = a + (rand() - 0.5) * 0.05;
+        points.push({
+            x: x + Math.cos(aJitter) * rJitter,
+            y: y + Math.sin(aJitter) * rJitter
+        });
+    }
+    
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     
     ctx.beginPath();
-    let startX = 0, startY = 0;
+    let startX = points[0].x;
+    let startY = points[0].y;
+    ctx.moveTo(startX, startY);
     
-    for (let i = 0; i <= sides; i++) {
-        if (i === sides) {
-            // 最後の点は必ず開始点に閉じる（バリを防ぐため）
-            ctx.lineTo(startX, startY);
-        } else {
-            // 多角形全体が物理演算の回転（angle）に合わせて回るようにする
-            const a = (i / sides) * Math.PI * 2 + angle;
-            
-            // 玉（Particle）には切手の波々効果は適用せず、頂点ごとにわずかな手描き風のブレだけを加える
-            // これにより、三角や四角の元の形が崩れすぎず綺麗に見える
-            const rJitter = radius + (rand() - 0.5) * Math.min(jitter, 3.0);
-            const aJitter = a + (rand() - 0.5) * 0.1;
-            
-            const px = x + Math.cos(aJitter) * rJitter;
-            const py = y + Math.sin(aJitter) * rJitter;
-            
-            if (i === 0) {
-                startX = px;
-                startY = py;
-                ctx.moveTo(px, py);
+    // 半径に応じた波々効果（切手風ギザギザ）の強さを計算
+    // 半径20以下ではギザギザを完全に0（綺麗な手書き多角形）にし、半径50以上で最大にする
+    const minWavinessRadius = 20;
+    const maxWavinessRadius = 50;
+    let wavinessScale = 0;
+    if (radius > minWavinessRadius) {
+        wavinessScale = Math.min(1.0, (radius - minWavinessRadius) / (maxWavinessRadius - minWavinessRadius));
+    }
+    
+    const targetWaveLength = 24; // 波の幅
+    const waveAmp = Math.min(jitter * 1.5, 4.0) * wavinessScale; // 半径でスケールされた振幅
+    
+    for (let i = 0; i < points.length; i++) {
+        const p1 = points[i];
+        const p2 = points[(i + 1) % points.length];
+        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        
+        // この線分に収まる波の数を計算
+        const numWaves = Math.max(1, Math.round(dist / targetWaveLength));
+        const steps = Math.max(2, numWaves * 6);
+        
+        // 法線ベクトル (ゼロ除算防止)
+        const nx = dist > 0 ? -(p2.y - p1.y) / dist : 0;
+        const ny = dist > 0 ? (p2.x - p1.x) / dist : 0;
+        
+        for (let j = 1; j <= steps; j++) {
+            if (i === points.length - 1 && j === steps) {
+                // 最後の点は開始点に綺麗に閉じる
+                ctx.lineTo(startX, startY);
             } else {
-                ctx.lineTo(px, py);
+                const t = j / steps;
+                // 正弦波で波立たせる
+                const offset = Math.sin(t * numWaves * Math.PI * 2) * waveAmp;
+                
+                const tx = p1.x + (p2.x - p1.x) * t;
+                const ty = p1.y + (p2.y - p1.y) * t;
+                
+                // 線自体のアナログ感（ごく微細なブレ）
+                let lx = (rand() - 0.5) * Math.min(jitter * 0.2, 0.5);
+                let ly = (rand() - 0.5) * Math.min(jitter * 0.2, 0.5);
+                
+                ctx.lineTo(tx + nx * offset + lx, ty + ny * offset + ly);
             }
         }
     }
