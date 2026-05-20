@@ -25,6 +25,7 @@ let bgGridPattern;
 // Neon モード用音響
 let neonSynth;
 let neonDrone;
+let neonNoise;
 
 // Print モード用音響（Oval/Fennesz/Múmインスパイア）
 let printSynth;        // Fennesz風ディストーションシンセ
@@ -202,60 +203,77 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     // --- Neon Mode ---
     // warm resonant steelpan tones with shimmering metallic overtones, soft mallet attack, tuned metallic percussion with bell-like sustain, inharmonic metallic harmonics, drifting overtones, organic pitch wobble, spectral metallic drone, ghostly harmonic particles, deep evolving resonance, soft tropical reverb dissolving into granular noise and harmonic debris
     neonSynth = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 1.18, // Steelpan-like inharmonic metallic harmonics
-        modulationIndex: 3, // Warm resonant steelpan tones
+        harmonicity: 2.5, // よりスティールパンらしい金属的な響き
+        modulationIndex: 4, // 響きの豊かさ
         oscillator: { type: "sine" },
         envelope: {
-            attack: 0.001, // 瞬時に立ち上がるアタック
-            decay: 0.4,
-            sustain: 0.25, // Bell-like sustain
-            release: 2.5
+            attack: 0.005, // 瞬時すぎないアタックで太鼓っぽさを回避し「コンッ」という金属感へ
+            decay: 1.5, // サスティーン長め
+            sustain: 0.5, // Bell-like sustain
+            release: 4.0 // フェードアウトを長く
         },
-        modulation: { type: "sine" },
+        modulation: { type: "triangle" }, // より鋭い金属音
         modulationEnvelope: {
-            attack: 0.005, // 少しだけ変調を遅らせて打撃感をマイルドに
-            decay: 0.3,
-            sustain: 0.0,
-            release: 1.5
+            attack: 0.002, // 変調のアタックは鋭く
+            decay: 1.0,
+            sustain: 0.2,
+            release: 3.0
         }
     }).chain(
         new Tone.Vibrato({ frequency: 1.0, depth: 0.03 }), // Organic pitch wobble
         new Tone.Chorus(4, 3.0, 0.4), // Drifting overtones / ghostly harmonic particles
-        // フィルターを外して高音のこもりを完全に解消
-        new Tone.PingPongDelay("8n.", 0.25),
-        new Tone.Reverb({ decay: 8.5, preDelay: 0.1, wet: 0.65 }), // Soft tropical reverb
+        new Tone.PingPongDelay("4n", 0.4), // ディレイを長く、大きくしてアンビエント感を強化
+        new Tone.Reverb({ decay: 12, preDelay: 0.1, wet: 0.75 }), // より深いアンビエント
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonSynth.volume.value = 6.0; // こもり解消に合わせて音量をさらに大きく
+    neonSynth.volume.value = 6.0;
 
     // 低音部もスティールパンのような打楽器的な響きに (Bass Steelpan)
     neonDrone = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 1.18,
-        modulationIndex: 2.5, // 低音は変調を少し抑えめに
+        harmonicity: 2.5,
+        modulationIndex: 3, 
         oscillator: { type: "sine" },
         envelope: {
-            attack: 0.001, // 低音も瞬時にアタック
-            decay: 0.6,
-            sustain: 0.3, // 余韻を残す
-            release: 3.5
+            attack: 0.01, 
+            decay: 2.0,
+            sustain: 0.6, 
+            release: 5.0 // サスティーン長め
         },
-        modulation: { type: "sine" },
+        modulation: { type: "triangle" },
         modulationEnvelope: {
-            attack: 0.005,
-            decay: 0.4,
-            sustain: 0.0,
-            release: 2.0
+            attack: 0.01,
+            decay: 1.5,
+            sustain: 0.3,
+            release: 4.0
         }
     }).chain(
         new Tone.Chorus(4, 2.5, 0.5),
-        new Tone.FeedbackDelay("2n", 0.6),
-        new Tone.BitCrusher(5), // 音が減衰して消えゆく際に「チリチリ」としたノイズ（harmonic debris）を発生させる
-        new Tone.Reverb({ decay: 12, wet: 0.7 }),
+        new Tone.FeedbackDelay("2n", 0.6), // 深いディレイ
+        new Tone.Reverb({ decay: 15, wet: 0.85 }), // 深いアンビエント
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonDrone.volume.value = -1.0; // 低音もハッキリ聞こえるように大幅に音量アップ
+    neonDrone.volume.value = -1.0; 
+
+    // 消えゆく際のチリチリとした綺麗なノイズ（細かい粒）
+    neonNoise = new Tone.NoiseSynth({
+        noise: { type: "pink" },
+        envelope: {
+            attack: 2.0, // 音が減衰する頃にゆっくり立ち上がる
+            decay: 1.0,
+            sustain: 1.0,
+            release: 6.0 // 長くフェードアウト
+        }
+    }).chain(
+        new Tone.Filter(8000, "highpass"), // 細かい粒のみを通す
+        new Tone.Chorus(4, 3.5, 0.6),
+        new Tone.FeedbackDelay("8n", 0.4),
+        new Tone.Reverb({ decay: 10, wet: 0.8 }),
+        new Tone.Limiter(-2),
+        Tone.Destination
+    );
+    neonNoise.volume.value = -20; // うるさくないように控えめに調整
 
     // --- Print Mode (Oval/Fennesz/Múm inspired Noise-Electronica) ---
     // Fennesz風ディストーション・フィードバックギターシンセ
@@ -649,6 +667,7 @@ Events.on(engine, 'collisionStart', function(event) {
                         if (particle.plugin.radius > 50) {
                             neonDrone.triggerAttackRelease(note, duration, undefined, vol * 0.7);
                             neonSynth.triggerAttackRelease(note, duration * 0.5, undefined, vol * 0.5);
+                            neonNoise.triggerAttackRelease(duration, undefined, vol * 0.3); // 減衰時にノイズを鳴らす
                         } else {
                             neonSynth.triggerAttackRelease(note, duration * 0.3, undefined, vol);
                         }
