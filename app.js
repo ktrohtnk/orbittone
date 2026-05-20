@@ -200,49 +200,56 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     droneSynth.volume.value = -14; // うるさすぎないように調整
     
     // --- Neon Mode ---
-    // 金属的できらびやかなFMシンセサイザー（ネオンの輝き表現）
+    // Attack → soft rubber mallet hit
+    // Body → tuned metallic resonance
+    // Harmonics → shimmering inharmonic overtones
+    // Space → humid tropical reverb
     neonSynth = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 3.5,
-        modulationIndex: 5,
+        harmonicity: 1.618, // Shimmering inharmonic overtones (黄金比)
+        modulationIndex: 4, // 抑えめの変調で丸みのある金属音に
         oscillator: { type: "sine" },
         envelope: {
-            attack: 0.01,
+            attack: 0.04, // Soft rubber mallet hit (アタックを遅らせて柔らかく)
             decay: 0.4,
-            sustain: 0.1,
-            release: 1.5
+            sustain: 0.2, // Tuned metallic resonance (金属的な余韻を残す)
+            release: 2.0
         },
-        modulation: { type: "square" },
+        modulation: { type: "sine" },
         modulationEnvelope: {
-            attack: 0.02,
-            decay: 0.2,
+            attack: 0.05, // 変調のアタックも遅らせて高音の刺さりを防ぐ
+            decay: 0.3,
             sustain: 0,
             release: 1.0
         }
     }).chain(
-        new Tone.PingPongDelay("4n", 0.5), // 左右に飛び交うステレオディレイ
-        new Tone.Reverb({ decay: 6, wet: 0.5 }),
+        new Tone.Vibrato({ frequency: 1.5, depth: 0.05 }), // 有機的なピッチの揺らぎ
+        new Tone.Filter(3500, "lowpass"), // Humid (多湿) な空間を表現し、高音の強さを吸収
+        new Tone.Chorus(2, 2.5, 0.4),
+        new Tone.PingPongDelay("8n.", 0.3),
+        new Tone.Reverb({ decay: 8, preDelay: 0.1, wet: 0.6 }), // Tropical reverb (深くて密林のような残響)
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonSynth.volume.value = -14;
+    neonSynth.volume.value = -12; // 音が大きすぎないようにゲインを抑える
 
-    // ゆったり揺らめくスペーシードローン
+    // ゆったり揺らめくスペーシードローン (Neon Mode低音用)
     neonDrone = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "triangle" },
         envelope: {
-            attack: 2.0,
+            attack: 0.8, // 柔らかいアタック
             decay: 1.0,
-            sustain: 0.8,
-            release: 3.0
+            sustain: 0.6,
+            release: 4.0
         }
     }).chain(
-        new Tone.Chorus(4, 2.5, 0.5),
-        new Tone.FeedbackDelay("2n", 0.6),
-        new Tone.Reverb({ decay: 12, wet: 0.7 }),
+        new Tone.Filter(800, "lowpass"), // こもった深い空間
+        new Tone.Chorus(4, 3.0, 0.5),
+        new Tone.FeedbackDelay("2n", 0.5),
+        new Tone.Reverb({ decay: 12, preDelay: 0.2, wet: 0.7 }), // トロピカルな深残響
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonDrone.volume.value = -20;
+    neonDrone.volume.value = -18;
 
     // --- Print Mode (Oval/Fennesz/Múm inspired Noise-Electronica) ---
     // Fennesz風ディストーション・フィードバックギターシンセ
