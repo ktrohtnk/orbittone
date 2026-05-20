@@ -76,29 +76,22 @@ function drawJitterPolygon(ctx, points, jitter, seed, angle, closePath = true) {
 }
 
 function drawJitterCircle(ctx, x, y, radius, jitter, seed, angle) {
-    let currentSeed = seed;
-    function rand() {
-        let x = Math.sin(currentSeed++) * 10000;
-        return x - Math.floor(x);
+    // printモード用：半径に応じた多角形（最小3角形〜最大12角形）を生成
+    // 半径5〜105の範囲を3〜12角形にマッピングする
+    const sides = Math.min(12, Math.max(3, Math.floor(3 + ((radius - 5) / 100) * 9)));
+    
+    const pts = [];
+    for (let i = 0; i < sides; i++) {
+        // 多角形全体が物理演算の回転（angle）に合わせて回るようにする
+        const a = (i / sides) * Math.PI * 2 + angle;
+        pts.push({
+            x: x + Math.cos(a) * radius,
+            y: y + Math.sin(a) * radius
+        });
     }
     
-    ctx.beginPath();
-    const steps = Math.max(8, Math.floor(radius / 4)); 
-    for (let i = 0; i <= steps; i++) {
-        const a = (i / steps) * Math.PI * 2;
-        const rJitter = radius + (rand() - 0.5) * jitter * 2;
-        const lx = Math.cos(a) * rJitter + (rand() - 0.5) * jitter;
-        const ly = Math.sin(a) * rJitter + (rand() - 0.5) * jitter;
-        
-        const cosA = Math.cos(angle);
-        const sinA = Math.sin(angle);
-        const worldX = lx * cosA - ly * sinA;
-        const worldY = lx * sinA + ly * cosA;
-        
-        if (i === 0) ctx.moveTo(x + worldX, y + worldY);
-        else ctx.lineTo(x + worldX, y + worldY);
-    }
-    ctx.closePath();
+    // 多角形の各辺を手書き風に歪ませて描画する
+    drawJitterPolygon(ctx, pts, jitter, seed, angle, true);
 }
 
 function createBgGridPattern() {
