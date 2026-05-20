@@ -29,6 +29,7 @@ let neonDrone;
 // Print モード用音響（Oval/Fennesz/Múmインスパイア）
 let printSynth;        // Fennesz風ディストーションシンセ
 let printDrone;        // 重厚なディストーションドローン
+let printLiquidSynth;  // キラキラ・水滴音用シンセ
 let printGlitch;       // Oval風グリッチノイズ源
 let printGlitchEnv;    // グリッチ用エンベロープ
 let printGlitchFilter;  // グリッチ用可変フィルター
@@ -279,6 +280,23 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         Tone.Destination
     );
     printDrone.volume.value = -20;
+
+    // キラキラ・水滴（ピチャピチャ）音用シンセ
+    printLiquidSynth = new Tone.Synth({
+        oscillator: { type: "sine" }, // クリーンなサイン波
+        envelope: {
+            attack: 0.002,
+            decay: 0.08,
+            sustain: 0,
+            release: 0.12
+        }
+    }).chain(
+        new Tone.FeedbackDelay("8n.", 0.6), // 空間的きらめき
+        new Tone.Reverb({ decay: 6, wet: 0.65 }), // 水中感のあるみずみずしい残響
+        new Tone.Limiter(-2),
+        Tone.Destination
+    );
+    printLiquidSynth.volume.value = -11;
 
     // Oval風グリッチノイズジェネレータ
     printGlitch = new Tone.Noise("pink");
@@ -625,24 +643,30 @@ Events.on(engine, 'collisionStart', function(event) {
                     } else if (currentStyle === 'print') {
                         // --- Print: ノイズエレクトロニカ (Oval/Fennesz/Múm) ---
                         
-                        // 1. Fennesz風の歪みギターアンビエント音のトリガー
+                        // 1. Fennesz風歪みギター音、またはMúm風キラキラ水滴音のトリガー
                         if (particle.plugin.radius > 50) {
                             printDrone.triggerAttackRelease(note, duration, undefined, vol * 0.8);
                             printSynth.triggerAttackRelease(note, duration * 0.8, undefined, vol * 0.4);
                         } else {
-                            printSynth.triggerAttackRelease(note, duration * 0.4, undefined, vol * 0.7);
+                            // 小さい玉は歪みシンセを避け、クリーンな水滴ピチャ音（スイープサイン波）をトリガー
+                            const freq = Tone.Frequency(note).toFrequency();
+                            printLiquidSynth.triggerAttackRelease(freq, 0.08, undefined, vol * 0.85);
+                            
+                            // ピッチスイープ（1.6倍の超高音から本来の周波数へ0.03秒で急降下させ、みずみずしい「ピチャッ」感を出す）
+                            printLiquidSynth.frequency.setValueAtTime(freq * 1.6, Tone.now());
+                            printLiquidSynth.frequency.exponentialRampToValueAtTime(freq, Tone.now() + 0.03);
                         }
                         
-                        // 2. Oval風の微細なグリッチノイズクリックのトリガー
+                        // 2. Oval風の微細なグリッチノイズクリックのトリガー (痛くないようマイルドに調整)
                         if (printGlitchEnv && printGlitchFilter) {
-                            // 小さい玉ほど高周波数のピシッとしたクリックに、大きい玉ほど中音域のノイズに
-                            const glitchFreq = Math.min(1800 + (105 - particle.plugin.radius) * 130 + Math.random() * 3000, 15000);
+                            // 周波数の上限を下げてマイルドに（痛い超高音をカット）
+                            const glitchFreq = Math.min(1500 + (105 - particle.plugin.radius) * 100 + Math.random() * 2000, 9500);
                             printGlitchFilter.frequency.value = glitchFreq;
                             
-                            // 小さい玉ほどグリッチがハッキリ前面に聴こえるようにブレンド
-                            const glitchVol = vol * (1.2 - (particle.plugin.radius / 100));
-                            if (glitchVol > 0.05) {
-                                printGlitchEnv.triggerAttackRelease(0.005 + Math.random() * 0.02, undefined, glitchVol);
+                            // グリッチ音量もマイルドに引き下げ
+                            const glitchVol = vol * (0.5 - (particle.plugin.radius / 200));
+                            if (glitchVol > 0.02) {
+                                printGlitchEnv.triggerAttackRelease(0.003 + Math.random() * 0.01, undefined, glitchVol);
                             }
                         }
                     }
