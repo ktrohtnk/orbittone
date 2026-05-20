@@ -200,56 +200,53 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     droneSynth.volume.value = -14; // うるさすぎないように調整
     
     // --- Neon Mode ---
-    // Attack → soft rubber mallet hit
-    // Body → tuned metallic resonance
-    // Harmonics → shimmering inharmonic overtones
-    // Space → humid tropical reverb
+    // warm resonant steelpan tones with shimmering metallic overtones, soft mallet attack, tuned metallic percussion with bell-like sustain, inharmonic metallic harmonics, drifting overtones, organic pitch wobble, spectral metallic drone, ghostly harmonic particles, deep evolving resonance, soft tropical reverb dissolving into granular noise and harmonic debris
     neonSynth = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 1.618, // Shimmering inharmonic overtones (黄金比)
-        modulationIndex: 4, // 抑えめの変調で丸みのある金属音に
+        harmonicity: 1.18, // Steelpan-like inharmonic metallic harmonics
+        modulationIndex: 3, // Warm resonant steelpan tones
         oscillator: { type: "sine" },
         envelope: {
-            attack: 0.04, // Soft rubber mallet hit (アタックを遅らせて柔らかく)
+            attack: 0.015, // Soft mallet attack
             decay: 0.4,
-            sustain: 0.2, // Tuned metallic resonance (金属的な余韻を残す)
-            release: 2.0
+            sustain: 0.25, // Bell-like sustain
+            release: 2.5
         },
         modulation: { type: "sine" },
         modulationEnvelope: {
-            attack: 0.05, // 変調のアタックも遅らせて高音の刺さりを防ぐ
+            attack: 0.015,
             decay: 0.3,
-            sustain: 0,
-            release: 1.0
+            sustain: 0.0,
+            release: 1.5
         }
     }).chain(
-        new Tone.Vibrato({ frequency: 1.5, depth: 0.05 }), // 有機的なピッチの揺らぎ
-        new Tone.Filter(3500, "lowpass"), // Humid (多湿) な空間を表現し、高音の強さを吸収
-        new Tone.Chorus(2, 2.5, 0.4),
-        new Tone.PingPongDelay("8n.", 0.3),
-        new Tone.Reverb({ decay: 8, preDelay: 0.1, wet: 0.6 }), // Tropical reverb (深くて密林のような残響)
+        new Tone.Vibrato({ frequency: 1.0, depth: 0.03 }), // Organic pitch wobble
+        new Tone.Chorus(4, 3.0, 0.4), // Drifting overtones / ghostly harmonic particles
+        new Tone.Filter(10000, "lowpass"), // Keep high notes clear
+        new Tone.PingPongDelay("8n.", 0.25),
+        new Tone.Reverb({ decay: 8.5, preDelay: 0.1, wet: 0.65 }), // Soft tropical reverb
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonSynth.volume.value = -12; // 音が大きすぎないようにゲインを抑える
+    neonSynth.volume.value = 2.0; // Boost volume so high notes are audible
 
-    // ゆったり揺らめくスペーシードローン (Neon Mode低音用)
+    // Spectral metallic drone / deep evolving resonance
     neonDrone = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "triangle" },
+        oscillator: { type: "triangle" }, // Using triangle for spectral purity, like the initial version
         envelope: {
-            attack: 0.8, // 柔らかいアタック
+            attack: 1.5,
             decay: 1.0,
-            sustain: 0.6,
+            sustain: 0.8,
             release: 4.0
         }
     }).chain(
-        new Tone.Filter(800, "lowpass"), // こもった深い空間
-        new Tone.Chorus(4, 3.0, 0.5),
-        new Tone.FeedbackDelay("2n", 0.5),
-        new Tone.Reverb({ decay: 12, preDelay: 0.2, wet: 0.7 }), // トロピカルな深残響
+        new Tone.Chorus(4, 2.5, 0.5), // Ghostly harmonic particles
+        new Tone.FeedbackDelay("2n", 0.6), // Evolving resonance
+        new Tone.BitCrusher(6), // Subtle granular noise/harmonic debris in the tail
+        new Tone.Reverb({ decay: 12, wet: 0.75 }), // Deep evolving resonance
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonDrone.volume.value = -18;
+    neonDrone.volume.value = -12; // Increase volume so drone is clearly audible
 
     // --- Print Mode (Oval/Fennesz/Múm inspired Noise-Electronica) ---
     // Fennesz風ディストーション・フィードバックギターシンセ
