@@ -200,103 +200,112 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     droneSynth.volume.value = -14; // うるさすぎないように調整
     
     // --- Neon Mode ---
-    // 金属的できらびやかなFMシンセサイザー（ネオンの輝き表現）
+    // Attack → soft rubber mallet hit, Body → tuned metallic resonance, Harmonics → shimmering inharmonic overtones
+    // Space → humid tropical reverb, Texture → organic pitch instability
     neonSynth = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 3.5,
-        modulationIndex: 5,
+        harmonicity: 1.618, // 黄金比(1.618)を採用し、美しく複雑なインハーモニック（非整数）倍音のシマー感を生む
+        modulationIndex: 14, // ラバーマレットの丸みは残しつつ、アタックを強調するため変調を少し強めに
         oscillator: { type: "sine" },
         envelope: {
-            attack: 0.01,
-            decay: 0.4,
-            sustain: 0.1,
-            release: 1.5
+            attack: 0.005, // アタックを速めにしてアタック感を強調
+            decay: 0.35,  
+            sustain: 0.25, // チューニングされた金属的な共鳴（Body）を豊かに残す
+            release: 3.5
         },
-        modulation: { type: "square" },
+        modulation: { type: "sine" },
         modulationEnvelope: {
-            attack: 0.02,
-            decay: 0.2,
+            attack: 0.005, // 変調のアタックも速める
+            decay: 0.15,
             sustain: 0,
             release: 1.0
         }
     }).chain(
-        new Tone.PingPongDelay("4n", 0.5), // 左右に飛び交うステレオディレイ
-        new Tone.Reverb({ decay: 6, wet: 0.5 }),
+        new Tone.Vibrato({ frequency: 1.2, depth: 0.04 }), // Organic pitch instability（カセットテープや熱帯の揺らぎのようなピッチの不安定さ）
+        new Tone.Chorus(2, 0.8, 0.5), // 控えめなコーラスでさらなる揺らぎと質感を付加
+        new Tone.FeedbackDelay("8n.", 0.25), 
+        new Tone.Filter(8000, "lowpass"), // 高域（特にオクターブ上の音）を消さないよう8000Hzに拡大
+        new Tone.Reverb({ decay: 7.5, preDelay: 0.1, wet: 0.65 }), // PreDelayを設け、密林や洞窟のようなトロピカルリバーブ空間を作る
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonSynth.volume.value = -14;
+    neonSynth.volume.value = 7.0; // フィルター調整に合わせて、全体のゲインをさらに補償
 
-    // ゆったり揺らめくスペーシードローン
+    // 神秘的で深遠なディープドローン（ドローンミュージックの強調）
     neonDrone = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "triangle" },
+        oscillator: { 
+            type: "fatsawtooth", // デチューンされた重厚で豊かなのこぎり波
+            count: 3,
+            spread: 30
+        },
         envelope: {
-            attack: 2.0,
+            attack: 0.8, // 立ち上がりを3.5秒から0.8秒へ短縮し、ボールの跳ね返り時間内で十分に発音させる
             decay: 1.0,
-            sustain: 0.8,
-            release: 3.0
+            sustain: 0.9, // 音量がほぼ減衰せずに持続
+            release: 6.5 // 非常に長いリリースの余韻
         }
     }).chain(
-        new Tone.Chorus(4, 2.5, 0.5),
-        new Tone.FeedbackDelay("2n", 0.6),
-        new Tone.Reverb({ decay: 12, wet: 0.7 }),
+        new Tone.Filter({ frequency: 450, type: "lowpass" }), // 160Hzから450Hzへ変更し、中高域のドローン音も消音されずに暖かく響くように調整
+        new Tone.Chorus(2, 3.5, 0.65), // 地鳴りのような神秘的な揺らぎとうねりを付与
+        new Tone.FeedbackDelay("2n", 0.65),
+        new Tone.Reverb({ decay: 15, wet: 0.85 }), // 15秒の超ディープリバーブで空間を満たす
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonDrone.volume.value = -20;
+    neonDrone.volume.value = -4.0; // 低域ドローンの音量をアップ (-12dB -> -4.0dB)
 
     // --- Print Mode (Oval/Fennesz/Múm inspired Noise-Electronica) ---
     // Fennesz風ディストーション・フィードバックギターシンセ
     const printDist = new Tone.Distortion(0.55); // ほどよい歪み
     const printCrusher = new Tone.BitCrusher(6); // ローファイ感
     const printFilter = new Tone.Filter(1800, "lowpass");
-    const printDelay = new Tone.FeedbackDelay("6n", 0.65); // 高いフィードバック値でノイズを誘発
-    const printReverb = new Tone.Reverb({ decay: 10, wet: 0.75 }); // 空間を飽和させる深残響
+    const printDelay = new Tone.FeedbackDelay("6n", 0.68); // 高いフィードバック値でフィードバックノイズを誘発
+    const printReverb = new Tone.Reverb({ decay: 14, wet: 0.85 }); // 空間を飽和させる超深残響 (14秒 / wet 0.85)
     
     printSynth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "sawtooth" }, // 歪ませるためのこぎり波
         envelope: {
-            attack: 0.15,
-            decay: 0.3,
-            sustain: 0.6,
-            release: 3.5
+            attack: 0.05,
+            decay: 0.35,
+            sustain: 0.7, // サスティーン量をアップ
+            release: 5.5  // 残響リリースを5.5秒に大幅延長
         }
     }).chain(printDist, printCrusher, printFilter, printDelay, printReverb, new Tone.Limiter(-2), Tone.Destination);
-    printSynth.volume.value = -16; // 歪みで音が大きくなるため音量は控えめ
+    printSynth.volume.value = -17; // 残響が増えて重なるため、音量をほんの少し微調整
 
     // 重厚なディストーションドローン（大きい玉用）
     printDrone = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "square" },
         envelope: {
-            attack: 0.8,
+            attack: 0.18,
             decay: 0.5,
-            sustain: 0.7,
-            release: 4.5
+            sustain: 0.8, // 重低音のサスティーン量をアップ
+            release: 7.0  // リリースを7.0秒に延長
         }
     }).chain(
         new Tone.Filter(250, "lowpass"),
         new Tone.Distortion(0.3),
-        new Tone.Reverb({ decay: 8, wet: 0.8 }),
+        new Tone.Reverb({ decay: 12, wet: 0.9 }), // 重低音リバーブも超深く (12秒 / wet 0.9)
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    printDrone.volume.value = -20;
+    printDrone.volume.value = -21;
 
     // キラキラ・水滴（ピチャピチャ）音用シンセ
     printLiquidSynth = new Tone.Synth({
         oscillator: { type: "sine" }, // クリーンなサイン波
         envelope: {
             attack: 0.002,
-            decay: 0.08,
+            decay: 0.1, // 水滴の余韻を少し長く
             sustain: 0,
-            release: 0.12
+            release: 0.4 // リリースを0.4秒に伸ばしてふんわり消えるように
         }
     }).chain(
-        new Tone.FeedbackDelay("8n.", 0.6), // 空間的きらめき
-        new Tone.Reverb({ decay: 6, wet: 0.65 }), // 水中感のあるみずみずしい残響
+        new Tone.FeedbackDelay("8n.", 0.7), // フィードバックを0.7に増やしてディレイを長く持続
+        new Tone.Reverb({ decay: 8, wet: 0.8 }), // 水滴音のリバーブも深く (8秒 / wet 0.8)
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    printLiquidSynth.volume.value = -11;
+    printLiquidSynth.volume.value = -12;
 
     // Oval風グリッチノイズジェネレータ
     printGlitch = new Tone.Noise("pink");
@@ -634,11 +643,31 @@ Events.on(engine, 'collisionStart', function(event) {
                         }
                     } else if (currentStyle === 'neon') {
                         // --- Neon: 金属的・スペーシーアンビエント ---
-                        if (particle.plugin.radius > 50) {
-                            neonDrone.triggerAttackRelease(note, duration, undefined, vol * 0.7);
-                            neonSynth.triggerAttackRelease(note, duration * 0.5, undefined, vol * 0.5);
+                        // 速度による音量変化の感度を調整（高音もはっきり聞こえるように下限と上限を引き上げ）
+                        const neonVol = Math.min(0.6 + (velocity / 8), 1.8);
+                        
+                        // 高音域を天国のようにきらびやかにするため、オクターブをシフト
+                        let neonNote;
+                        if (particle.plugin.radius < 15) {
+                            // ワンクリック極小玉などは2オクターブ上げる (例: C5 -> C7) で超きらきらな天界の音に
+                            neonNote = Tone.Frequency(note).transpose(24).toNote();
+                        } else if (particle.plugin.radius < 35) {
+                            // 小玉は1オクターブ上げる (例: C5 -> C6)
+                            neonNote = Tone.Frequency(note).transpose(12).toNote();
                         } else {
-                            neonSynth.triggerAttackRelease(note, duration * 0.3, undefined, vol);
+                            // 中・大玉は低音の重厚ドローン響きを保つためそのままの高さ
+                            neonNote = note;
+                        }
+                        
+                        if (particle.plugin.radius > 50) {
+                            // ドローン音（低音大玉）：アタックがしっかり聴こえるように
+                            neonDrone.triggerAttackRelease(neonNote, duration, undefined, neonVol * 0.9);
+                            // スチールパン音を薄く重ねる（1オクターブ上げてきらめき感を出す）
+                            const panNote = Tone.Frequency(neonNote).transpose(12).toNote();
+                            neonSynth.triggerAttackRelease(panNote, duration * 0.8, undefined, neonVol * 0.5);
+                        } else {
+                            // スチールパン音（高音小玉）：リリース時間を長めにトリガー（duration * 0.8）して天国的な美しい響きの余韻を出す
+                            neonSynth.triggerAttackRelease(neonNote, duration * 0.8, undefined, neonVol * 1.25);
                         }
                     } else if (currentStyle === 'print') {
                         // --- Print: ノイズエレクトロニカ (Oval/Fennesz/Múm) ---
