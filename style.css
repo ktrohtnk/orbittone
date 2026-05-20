@@ -8,6 +8,11 @@ body, html {
     color: #222;
     font-family: 'Outfit', sans-serif;
     touch-action: none; /* スマホでのスクロールを無効化 */
+    -webkit-user-select: none; /* テキスト選択を無効化 (Safari) */
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none; /* スマホでの長押しメニュー（コピー・翻訳等）を無効化 */
 }
 
 #game-canvas {
