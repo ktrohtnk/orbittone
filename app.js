@@ -450,6 +450,7 @@ let isDrawingPath = false;
 let holdStartPos = { x: 0, y: 0 };
 let holdStartTime = 0;
 let drawPoints = [];
+let currentHoldSeed = 0;
 
 // 入力ハンドリング
 function handleStart(x, y, e) {
@@ -459,6 +460,7 @@ function handleStart(x, y, e) {
     holdStartPos = { x, y };
     holdStartTime = Date.now();
     drawPoints = [{ x, y }];
+    currentHoldSeed = Math.random() * 10000;
 }
 
 function handleMove(x, y) {
@@ -535,7 +537,7 @@ function spawnParticle(x, y, duration) {
             hue: hue,
             radius: radius,
             flash: 0,
-            seed: Math.random() * 10000
+            seed: currentHoldSeed
         }
     });
 
@@ -855,8 +857,8 @@ function render() {
             const hue = 180 + (clampedDuration / 5000) * 160;
             ctx.strokeStyle = `hsl(${hue}, 80%, 75%)`;
             ctx.lineWidth = 4.0;
-            // プレビュー中は固定シードでブレないようにする
-            drawJitterCircle(ctx, holdStartPos.x, holdStartPos.y, radius, 1.5, 0, 0);
+            // プレビュー時と生成時でシード値とジッター量（歪み具合）を完全に一致させる
+            drawJitterCircle(ctx, holdStartPos.x, holdStartPos.y, radius, radius * 0.15 + 1.5, currentHoldSeed, 0);
             ctx.stroke();
         } else {
             ctx.beginPath();
