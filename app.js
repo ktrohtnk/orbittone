@@ -229,24 +229,23 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     );
     neonSynth.volume.value = 2.0; // Boost volume so high notes are audible
 
-    // Spectral metallic drone / deep evolving resonance
+    // ゆったり揺らめくスペーシードローン
     neonDrone = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "triangle" }, // Using triangle for spectral purity, like the initial version
+        oscillator: { type: "triangle" },
         envelope: {
-            attack: 1.5,
+            attack: 2.0,
             decay: 1.0,
             sustain: 0.8,
-            release: 4.0
+            release: 3.0
         }
     }).chain(
-        new Tone.Chorus(4, 2.5, 0.5), // Ghostly harmonic particles
-        new Tone.FeedbackDelay("2n", 0.6), // Evolving resonance
-        new Tone.BitCrusher(6), // Subtle granular noise/harmonic debris in the tail
-        new Tone.Reverb({ decay: 12, wet: 0.75 }), // Deep evolving resonance
+        new Tone.Chorus(4, 2.5, 0.5),
+        new Tone.FeedbackDelay("2n", 0.6),
+        new Tone.Reverb({ decay: 12, wet: 0.7 }),
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonDrone.volume.value = -12; // Increase volume so drone is clearly audible
+    neonDrone.volume.value = -20;
 
     // --- Print Mode (Oval/Fennesz/Múm inspired Noise-Electronica) ---
     // Fennesz風ディストーション・フィードバックギターシンセ
