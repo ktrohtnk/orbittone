@@ -206,14 +206,14 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         modulationIndex: 3, // Warm resonant steelpan tones
         oscillator: { type: "sine" },
         envelope: {
-            attack: 0.015, // Soft mallet attack
+            attack: 0.001, // 瞬時に立ち上がるアタック
             decay: 0.4,
             sustain: 0.25, // Bell-like sustain
             release: 2.5
         },
         modulation: { type: "sine" },
         modulationEnvelope: {
-            attack: 0.015,
+            attack: 0.005, // 少しだけ変調を遅らせて打撃感をマイルドに
             decay: 0.3,
             sustain: 0.0,
             release: 1.5
@@ -221,13 +221,13 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     }).chain(
         new Tone.Vibrato({ frequency: 1.0, depth: 0.03 }), // Organic pitch wobble
         new Tone.Chorus(4, 3.0, 0.4), // Drifting overtones / ghostly harmonic particles
-        new Tone.Filter(10000, "lowpass"), // Keep high notes clear
+        // フィルターを外して高音のこもりを完全に解消
         new Tone.PingPongDelay("8n.", 0.25),
         new Tone.Reverb({ decay: 8.5, preDelay: 0.1, wet: 0.65 }), // Soft tropical reverb
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonSynth.volume.value = 2.0; // Boost volume so high notes are audible
+    neonSynth.volume.value = 6.0; // こもり解消に合わせて音量をさらに大きく
 
     // 低音部もスティールパンのような打楽器的な響きに (Bass Steelpan)
     neonDrone = new Tone.PolySynth(Tone.FMSynth, {
@@ -235,14 +235,14 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         modulationIndex: 2.5, // 低音は変調を少し抑えめに
         oscillator: { type: "sine" },
         envelope: {
-            attack: 0.02, // ベースパンのようなやや重いアタック
+            attack: 0.001, // 低音も瞬時にアタック
             decay: 0.6,
             sustain: 0.3, // 余韻を残す
             release: 3.5
         },
         modulation: { type: "sine" },
         modulationEnvelope: {
-            attack: 0.02,
+            attack: 0.005,
             decay: 0.4,
             sustain: 0.0,
             release: 2.0
@@ -250,11 +250,12 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     }).chain(
         new Tone.Chorus(4, 2.5, 0.5),
         new Tone.FeedbackDelay("2n", 0.6),
+        new Tone.BitCrusher(5), // 音が減衰して消えゆく際に「チリチリ」としたノイズ（harmonic debris）を発生させる
         new Tone.Reverb({ decay: 12, wet: 0.7 }),
         new Tone.Limiter(-2),
         Tone.Destination
     );
-    neonDrone.volume.value = -6; // FMSynthに合わせて音量を調整
+    neonDrone.volume.value = -1.0; // 低音もハッキリ聞こえるように大幅に音量アップ
 
     // --- Print Mode (Oval/Fennesz/Múm inspired Noise-Electronica) ---
     // Fennesz風ディストーション・フィードバックギターシンセ
@@ -400,9 +401,8 @@ document.getElementById('mode-btn').addEventListener('click', (e) => {
             // 優しいサイン波のサイン音
             synth.triggerAttackRelease("E5", "4n", undefined, 0.4);
         } else if (currentStyle === 'neon') {
-            // ネオンのまたたきのような澄んだSFX音
-            neonSynth.triggerAttackRelease("A5", "8n", undefined, 0.3);
-            setTimeout(() => neonSynth.triggerAttackRelease("E6", "8n", undefined, 0.3), 80);
+            // スティールパン風の新しいトランジション和音
+            neonSynth.triggerAttackRelease(["C5", "G5", "E6"], "4n", undefined, 0.5);
         } else if (currentStyle === 'print') {
             // Múm風レコードクラックルの再生開始
             printCrackle.start();
